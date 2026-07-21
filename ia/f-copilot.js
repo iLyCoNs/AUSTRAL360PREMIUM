@@ -2474,7 +2474,11 @@
     } catch(e) {}
 
     if (!contactEmail || !contactEmail.includes('@')) {
-      contactEmail = 'perito.vidal@gmail.com';
+      contactEmail = '';
+    }
+    if (!contactEmail) {
+      window.FerrariUI && window.FerrariUI.showToast('Configura el correo FormSubmit en Admin → Contacto.', 'error');
+      return false;
     }
 
     // 2) Preparar payload compatible con FormSubmit
@@ -4495,11 +4499,11 @@
     // --- GRUPO 2: FINANCIAMIENTO Y FORMAS DE PAGO ---
     {
       regex: /^(¿?se\s+puede\s+pagar\s+en\s+cuotas\??|¿?tienen\s+financiamiento\s+directo\??|¿?ofrecen\s+credito\s+directo\??|¿?credito\s+directo\??|¿?financiamiento\s+directo\??)/i,
-      text: "Sí, contamos con opciones de financiamiento directo flexible. Generalmente consiste en dar un pie inicial de reserva y el saldo restante se puede pactar en cuotas fijas en UF. Para armar una simulación personalizada a tu medida, te recomiendo contactar directamente al propietario al WhatsApp +56987491964."
+      text: "Sí, contamos con opciones de financiamiento directo flexible. Generalmente consiste en dar un pie inicial de reserva y el saldo restante se puede pactar en cuotas fijas en UF. Para armar una simulación personalizada a tu medida, te recomiendo contactar directamente al propietario por el WhatsApp de ventas del proyecto."
     },
     {
       regex: /^(¿?cuanto\s+es\s+el\s+pie\??|¿?cuanto\s+se\s+pide\s+de\s+pie\??|¿?pie\s+minimo\??|¿?monto\s+de\s+reserva\??|¿?con\s+cuanto\s+se\s+reserva\??)/i,
-      text: "La reserva formal de una parcela se realiza con un pie mínimo o abono inicial de reserva (normalmente desde el 10% del valor total o un monto fijo acordado). Este abono asegura la exclusividad del lote mientras se redacta la promesa de compraventa. Escríbenos a perito.vidal@gmail.com para enviarte los datos de transferencia oficiales."
+      text: "La reserva formal de una parcela se realiza con un pie mínimo o abono inicial de reserva (normalmente desde el 10% del valor total o un monto fijo acordado). Este abono asegura la exclusividad del lote mientras se redacta la promesa de compraventa. Usa el botón Contactar de la ficha para solicitar los datos de transferencia oficiales."
     },
     {
       regex: /^(¿?formas\s+de\s+pago\??|¿?como\s+se\s+puede\s+pagar\??|¿?se\s+puede\s+transferir\??|¿?aceptan\s+credito\s+hipotecario\??|¿?credito\s+hipotecario\??)/i,
@@ -4507,11 +4511,11 @@
     },
     {
       regex: /^(¿?aceptan\s+vehiculo\??|¿?reciben\s+auto\??|¿?reciben\s+propiedad\??|¿?aceptan\s+permuta\??)/i,
-      text: "Por regla general, el loteo no acepta vehículos o propiedades en parte de pago o permuta directa. Sin embargo, para ofertas excepcionales de pago al contado, te sugerimos plantearlo al correo perito.vidal@gmail.com para que sea evaluado por el propietario."
+      text: "Por regla general, el loteo no acepta vehículos o propiedades en parte de pago o permuta directa. Sin embargo, para ofertas excepcionales de pago al contado, te sugerimos plantearlo por el formulario Contactar de la ficha para que sea evaluado por el propietario."
     },
     {
       regex: /^(¿?descuento\s+por\s+pago\s+al\s+contado\??|¿?hay\s+descuento\s+contado\??|¿?precio\s+conversable\??|¿?se\s+puede\s+hacer\s+oferta\??)/i,
-      text: "Sí, para pagos al contado (con vale vista o transferencia directa al momento de escriturar) es posible aplicar un descuento comercial sobre el valor de lista de las parcelas. Te invitamos a comunicarte vía WhatsApp al +56987491964 para negociar la oferta."
+      text: "Sí, para pagos al contado (con vale vista o transferencia directa al momento de escriturar) es posible aplicar un descuento comercial sobre el valor de lista de las parcelas. Te invitamos a comunicarte vía WhatsApp de ventas del proyecto para negociar la oferta."
     },
 
     // --- GRUPO 3: SERVICIOS BÁSICOS (LUZ, AGUA, INTERNET) ---
@@ -4547,7 +4551,7 @@
     },
     {
       regex: /^(¿?pagan\s+contribuciones\??|¿?cuanto\s+pagan\s+de\s+contribuciones\??|¿?estan\s+exentas\s+de\s+contribuciones\??)/i,
-      text: "La mayoría de las parcelas agrícolas rurales de este tipo están exentas del pago de contribuciones o pagan un monto mínimo de impuesto territorial agrícola (dependiendo de la tasación fiscal del SII). Escríbenos a perito.vidal@gmail.com para consultar la situación específica de un lote."
+      text: "La mayoría de las parcelas agrícolas rurales de este tipo están exentas del pago de contribuciones o pagan un monto mínimo de impuesto territorial agrícola (dependiendo de la tasación fiscal del SII). Usa el botón Contactar de la ficha para consultar la situación específica de un lote."
     },
     {
       regex: /^(¿?firmar\s+promesa\s+a\s+distancia\??|¿?se\s+puede\s+firmar\s+online\??|¿?notaria\s+digital\??|¿?como\s+es\s+la\s+escrituracion\??)/i,
@@ -4796,7 +4800,7 @@
     // 3) Contacto general / Reservas básicas (si no coincide con preguntas más detalladas)
     if (/^(¿?contacto\??|¿?como\s+contacto\??|¿?whatsapp\??|¿?telefono\??|¿?correo\??|¿?email\??|¿?como\s+reservar\??|¿?reserva\??|¿?reservar\??)$/.test(clean)) {
       return {
-        text: "Para coordinar visitas, realizar cotizaciones formales o reservas, puedes contactar al propietario directamente al correo perito.vidal@gmail.com o vía WhatsApp al +56987491964.",
+        text: "Para coordinar visitas, realizar cotizaciones formales o reservas, puedes contactar al propietario directamente desde el botón Contactar de la ficha del lote o por el WhatsApp de ventas del proyecto.",
         actions: []
       };
     }
@@ -5126,7 +5130,7 @@
     // 13) CONTACTO / WHATSAPP — variaciones naturales
     if (/(hablar\s+con\s+alguien|quiero\s+hablar|contactar|llamar|comunicarme|ejecutivo|vendedor|asesor\s+humano|persona\s+real|quiero\s+que\s+me\s+llamen|correo|email|escribir)/.test(clean)) {
       return {
-        text: 'Por supuesto. Puede comunicarse directamente al correo perito.vidal@gmail.com o al WhatsApp +56 9 8749 1964. ¿Desea que le abra el formulario de contacto ahora, señor?',
+        text: 'Por supuesto. Puede usar el botón Contactar de la ficha del lote o el WhatsApp de ventas del proyecto. ¿Desea que le abra el formulario de contacto ahora?',
         actions: []
       };
     }
@@ -5508,8 +5512,8 @@ Usa el campo "tags" de cada lote para responder con propiedades concretas. Usa l
 AGENDA DE VISITA: Si el cliente quiere ir al terreno, abre openCalendarWidget. Si da día/hora/nombre/correo/WhatsApp, usa fillCalendarVisit. Cuando diga confirmar, usa confirmCalendarVisit (envía solicitud al equipo; NO abras WhatsApp al cliente). Explica: elegir lote (se ancla), día del próximo mes, hora, datos, Confirmar Visita → pronto lo contactan.
 
 CONTACTO:
-- Correo: perito.vidal@gmail.com
-- WhatsApp: +56987491964
+- Usa solo el WhatsApp y correo configurados en brand.contact del proyecto.
+- Si están vacíos, indica al cliente el botón Contactar de la ficha. Nunca inventes números ni correos.
 Ofrécelos cuando el cliente quiera visita presencial, financiamiento o hablar con un ejecutivo.
 
 LISTADO REAL DE LOTES DISPONIBLES:
@@ -5672,10 +5676,10 @@ FORMATO DE RESPUESTA — ESTRICTAMENTE JSON:
       const c = window.FerrariBrandDock && window.FerrariBrandDock.getContact
         ? window.FerrariBrandDock.getContact()
         : null;
-      const raw = (c && (c.whatsapp || c.platformWhatsapp)) || '56987491964';
-      return String(raw).replace(/\D/g, '') || '56987491964';
+      const raw = (c && (c.whatsapp || c.platformWhatsapp)) || '';
+      return String(raw).replace(/\D/g, '');
     } catch (e) {
-      return '56987491964';
+      return '';
     }
   }
 
@@ -6533,7 +6537,12 @@ FORMATO DE RESPUESTA — ESTRICTAMENTE JSON:
                        `*Cliente:* ${name}\n` +
                        `*WhatsApp:* ${phone}`;
 
-        const wspUrl = `https://api.whatsapp.com/send?phone=56987491964&text=${encodeURIComponent(wspMsg)}`;
+        const sellerPhone = _calSellerPhone();
+        if (!sellerPhone) {
+          window.FerrariUI && window.FerrariUI.showToast('Configura el WhatsApp de ventas en Admin → Contacto.', 'info');
+          return;
+        }
+        const wspUrl = `https://api.whatsapp.com/send?phone=${sellerPhone}&text=${encodeURIComponent(wspMsg)}`;
         window.open(wspUrl, '_blank');
 
         closeFinanceWidget();

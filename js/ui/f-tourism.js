@@ -773,7 +773,7 @@
           window.FerrariBrandDock && typeof window.FerrariBrandDock.getContact === 'function'
             ? window.FerrariBrandDock.getContact()
             : null;
-        const phone = (contact && (contact.whatsapp || contact.platformWhatsapp)) || '56987491964';
+        const phone = (contact && (contact.whatsapp || contact.platformWhatsapp)) || '';
         if (window.FerrariBrandDock && typeof window.FerrariBrandDock.whatsappUrl === 'function') {
           waUrl = window.FerrariBrandDock.whatsappUrl(phone, msg);
         } else {

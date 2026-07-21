@@ -123,9 +123,9 @@
       servicios: 'bencinera gasolinera servicios'
     };
     const term = queryMap[_poiFilter] || 'servicios cercanos';
-    // Google Maps embed con búsqueda de tipo nearby + coordenadas de referencia exactas
+    // Embed sin API key (evita secret scanning). Misma familia que el minimapa satélite.
     const q = encodeURIComponent(`${term} cerca de ${o.lat},${o.lng}`);
-    return `https://www.google.com/maps/embed/v1/search?key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY&q=${q}&center=${o.lat},${o.lng}&zoom=14&language=es`;
+    return `https://maps.google.com/maps?q=${q}&z=14&t=m&hl=es&output=embed`;
   }
 
   // Envía el query de búsqueda de POIs abriendo Google Maps en una nueva pestaña

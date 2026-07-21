@@ -9,8 +9,8 @@
 
   const CACHE_KEY = 'ferrari360_brand';
   const CONTACT_DEFAULTS = {
-    whatsapp: '56987491964',
-    formEmail: 'perito.vidal@gmail.com',
+    whatsapp: '',
+    formEmail: '',
     formEnabled: true,
     platformCta: 'Consigue tu 360° aquí',
     platformWhatsapp: '',

@@ -36,7 +36,7 @@
     // ─── ALERTAS DE WHATSAPP (CallMeBot) ───
     whatsappAlerts: {
       enabled: true,
-      ownerPhone: '56987491964',
+      ownerPhone: '',
       callMeBotApiKey: 'kpk-enc-OTM2MzQxMg=='
     }
   };

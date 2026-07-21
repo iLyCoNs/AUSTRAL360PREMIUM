@@ -1374,7 +1374,7 @@
             <div class="egrid">
               <div class="efield full">
                 <label>WhatsApp ventas (solo numeros, con codigo pais)</label>
-                <input type="text" id="contact-whatsapp" placeholder="56912345678" inputmode="tel">
+                <input type="text" id="contact-whatsapp" placeholder="+569XXXXXXXX" inputmode="tel">
               </div>
               <div class="efield full">
                 <label>Correo FormSubmit (destino de consultas / reservas)</label>
@@ -1415,8 +1415,8 @@
                 </label>
               </div>
               <div class="efield">
-                <label>Tu número de celular (con código de país, ej: 56987491964)</label>
-                <input type="text" id="contact-wa-alerts-phone" placeholder="56987491964" inputmode="tel">
+                <label>Tu número de celular (con código de país, ej: +569XXXXXXXX)</label>
+                <input type="text" id="contact-wa-alerts-phone" placeholder="+569XXXXXXXX" inputmode="tel">
               </div>
               <div class="efield">
                 <label>API Key de CallMeBot (clave recibida por WhatsApp)</label>
@@ -1426,6 +1426,7 @@
             <p class="brand-card-sub" style="margin:12px 0 0; font-size:11px;">
               <strong>Cómo obtener la API Key gratis:</strong> Agrega a tus contactos al bot de WhatsApp <strong>+34 621 34 22 27</strong> (o haz click <a href="https://wa.me/34621342227" target="_blank" style="color:var(--accent)">aquí</a>), mándale el mensaje <code>I allow callmebot to send me messages</code> y te devolverá tu clave de 6 dígitos al instante.
             </p>
+          </div>
 
           <div class="ecard" id="contact-platform-lock" style="padding:16px 18px;margin:0" hidden>
             <div class="ecard-title">Plataforma · Consigue tu 360 <span style="opacity:.5;font-weight:500;text-transform:none;letter-spacing:0">(ALT+X)</span></div>
@@ -1440,7 +1441,7 @@
               </div>
               <div class="efield">
                 <label>WhatsApp disenador</label>
-                <input type="text" id="contact-platform-wa" placeholder="569…" inputmode="tel">
+                <input type="text" id="contact-platform-wa" placeholder="+569XXXXXXXX" inputmode="tel">
               </div>
               <div class="efield full">
                 <label>Sitio web</label>
@@ -1603,8 +1604,8 @@ try {
   if (cachedBackup) _backupSmartPins = JSON.parse(cachedBackup);
 } catch(e) {}
 const CONTACT_DEFAULTS = {
-  whatsapp: '56987491964',
-  formEmail: 'perito.vidal@gmail.com',
+  whatsapp: '',
+  formEmail: '',
   formEnabled: true,
   platformCta: 'Consigue tu 360° aquí',
   platformWhatsapp: '',
@@ -1842,14 +1843,16 @@ function renderSidebar() {
 
 /* ══ SELECCIONAR ══ */
 function selectLote(id) {
-  if (typeof setAdminSection === 'function') setAdminSection('lotes');
   _cid = id;
+  if (typeof setAdminSection === 'function') setAdminSection('lotes');
   const l = _lotes.find(x => x.id === id);
   if (!l) return;
   if (!Array.isArray(l.fotos)) l.fotos = [];
   document.querySelectorAll('.lote-item').forEach(el => el.classList.toggle('active', el.dataset.id === id));
-  document.getElementById('ed-placeholder').style.display = 'none';
-  const f = document.getElementById('ed-form'); f.style.display = 'flex';
+  const ph = document.getElementById('ed-placeholder');
+  if (ph) { ph.hidden = true; ph.style.display = 'none'; }
+  const f = document.getElementById('ed-form');
+  if (f) { f.hidden = false; f.style.display = 'flex'; }
   document.getElementById('f-titulo').value = l.titulo || '';
   document.getElementById('f-dim').value    = l.dimensiones || '';
   document.getElementById('f-uf').value     = l.valorUF || '';
