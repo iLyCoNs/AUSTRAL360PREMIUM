@@ -1,0 +1,21 @@
+{
+  "plan": "premium",
+  "version": "1.0",
+  "label": "KPK V1 — Plan Premium",
+  "features": {
+    "copilot": true,
+    "voice": true,
+    "tourism": true,
+    "weather": true,
+    "calendar": true,
+    "finance": true,
+    "nearby": true,
+    "mapTab": true,
+    "gallery": true,
+    "pdf": true,
+    "cta360": true,
+    "buyerDockLotes": true,
+    "drawingTools": true,
+    "draggableWidgets": true
+  }
+}

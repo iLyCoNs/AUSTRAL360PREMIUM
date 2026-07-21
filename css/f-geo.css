@@ -1,0 +1,547 @@
+/* f-geo.css — Brújula circular, pins geo premium, editor origen/horizonte/ruta/POI */
+
+/* ── Brújula: solo disco flotante (sin cápsula cuadrada) ── */
+#f-compass {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  pointer-events: none;
+  user-select: none;
+}
+.fc-orb {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  filter: drop-shadow(0 8px 18px rgba(0,0,0,0.18)) drop-shadow(0 2px 4px rgba(0,0,0,0.08));
+}
+.fc-glass {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.55) 42%, rgba(245,247,250,0.72) 100%);
+  border: 1px solid rgba(255,255,255,0.85);
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,0.9),
+    inset 0 -6px 14px rgba(0,0,0,0.04);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+}
+.fc-bezel {
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35);
+  pointer-events: none;
+}
+.fc-dial {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+.fc-cardinal {
+  position: absolute;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: rgba(29,29,31,0.38);
+  line-height: 1;
+}
+.fc-n {
+  top: 7px; left: 50%;
+  transform: translateX(-50%);
+  color: #FF3B30;
+  font-size: 10px;
+}
+.fc-e { right: 8px; top: 50%; transform: translateY(-50%); }
+.fc-s { bottom: 7px; left: 50%; transform: translateX(-50%); }
+.fc-w { left: 8px; top: 50%; transform: translateY(-50%); }
+.fc-tick {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 1.5px;
+  height: 5px;
+  margin: -2.5px 0 0 -0.75px;
+  border-radius: 1px;
+  background: rgba(0,0,0,0.18);
+  transform: rotate(var(--a)) translateY(-24px);
+}
+.fc-needle {
+  position: absolute;
+  inset: 14px;
+}
+.fc-blade {
+  position: absolute;
+  left: 50%;
+  width: 0;
+  height: 0;
+  margin-left: 0;
+}
+.fc-blade--n {
+  top: 0;
+  border-left: 4.5px solid transparent;
+  border-right: 4.5px solid transparent;
+  border-bottom: 18px solid #FF3B30;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 1px 1px rgba(255,59,48,0.35));
+}
+.fc-blade--s {
+  bottom: 0;
+  border-left: 4.5px solid transparent;
+  border-right: 4.5px solid transparent;
+  border-top: 18px solid rgba(142,142,147,0.85);
+  transform: translateX(-50%);
+}
+.fc-hub {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 9px; height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #3a3a3c, #1d1d1f);
+  box-shadow: 0 0 0 2.5px rgba(255,255,255,0.95), 0 1px 3px rgba(0,0,0,0.25);
+  z-index: 2;
+}
+.fc-bearing {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(29,29,31,0.72);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.55);
+  border: 1px solid rgba(255,255,255,0.7);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  line-height: 1.35;
+}
+
+#f-geo-pins-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+  overflow: visible; /* pins de horizonte viven cerca del borde */
+}
+.f-geo-pin {
+  position: absolute;
+  left: 0; top: 0;
+  width: 0;
+  height: 0;
+  transform: translate(-9999px, -9999px);
+  pointer-events: none;
+  will-change: transform;
+  z-index: 2;
+  transition: opacity 0.2s ease;
+}
+.f-geo-pin.is-dragging { z-index: 90 !important; }
+.f-geo-pin.is-front { z-index: 80 !important; }
+.f-geo-pin.is-dimmed { opacity: 0.38; }
+.f-geo-pin.is-dimmed .fgp-card {
+  pointer-events: none;
+}
+.f-geo-pin.is-front.is-dimmed { opacity: 1; filter: none; }
+.f-geo-pin.is-front .fgp-card {
+  opacity: 1;
+  filter: none;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(255,255,255,0.55) inset;
+}
+
+/* Ancla en el tip: card flota encima; tip brillante = lugar exacto */
+.fgp-card {
+  position: absolute;
+  left: 0;
+  bottom: 14px;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px 9px;
+  padding: 7px 8px 7px 9px;
+  min-width: 132px;
+  max-width: min(78vw, 320px);
+  width: max-content;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 10px 28px rgba(15, 23, 42, 0.14),
+    0 1px 0 rgba(255, 255, 255, 0.75) inset;
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  cursor: grab;
+  transition: box-shadow 0.18s, background 0.18s, opacity 0.2s, filter 0.2s;
+  touch-action: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+  opacity: 0.9;
+}
+.f-geo-pin.is-flip .fgp-card {
+  bottom: auto;
+  top: 14px;
+  transform: translateX(-50%);
+}
+.f-geo-pin.is-dragging .fgp-card {
+  cursor: grabbing;
+  opacity: 1;
+  box-shadow: 0 14px 32px rgba(0, 122, 255, 0.22);
+}
+
+.f-geo-pin[data-tipo="horizonte"] .fgp-card {
+  border-radius: 14px;
+  background: linear-gradient(165deg, rgba(255,255,255,0.82) 0%, rgba(255,248,240,0.78) 100%);
+  border-color: rgba(255, 196, 120, 0.4);
+  max-width: min(86vw, 360px);
+}
+
+.fgp-icon {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 12px;
+  line-height: 1;
+  background: rgba(0,0,0,0.04);
+  flex-shrink: 0;
+}
+.f-geo-pin[data-tipo="horizonte"] .fgp-icon { background: rgba(255,149,0,0.16); }
+.f-geo-pin[data-tipo="ruta"] .fgp-icon { background: rgba(0,122,255,0.12); }
+.f-geo-pin[data-tipo="poi"] .fgp-icon { background: rgba(52,199,89,0.12); }
+.fgp-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-right: 2px;
+}
+.fgp-title {
+  font-family: 'Outfit', 'Josefin Sans', system-ui, sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #141416;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  word-break: break-word;
+  -webkit-font-smoothing: antialiased;
+}
+/* Horizonte usa la misma tipografía Outfit que Cercanos (poi) */
+.f-geo-pin[data-tipo="horizonte"] .fgp-title {
+  font-family: 'Outfit', 'Josefin Sans', system-ui, sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+  color: #141416;
+}
+.fgp-sub {
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(20, 20, 22, 0.48);
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+}
+.f-geo-pin[data-tipo="horizonte"] .fgp-sub {
+  font-size: 10px;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  font-weight: 500;
+  color: rgba(20, 20, 22, 0.48);
+}
+.fgp-actions {
+  display: flex; align-items: center; gap: 3px;
+  align-self: start;
+  padding-top: 1px;
+}
+.fgp-btn {
+  border: none; cursor: pointer;
+  padding: 0; border-radius: 50%;
+  background: transparent; color: #1d1d1f;
+  font-family: inherit;
+  display: grid; place-items: center;
+}
+.fgp-btn--brand {
+  width: 22px; height: 22px;
+  background: rgba(255,255,255,0.98);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1), inset 0 0 0 1px rgba(0,0,0,0.05);
+}
+.fgp-btn--brand img {
+  width: 14px; height: 14px;
+  display: block;
+  object-fit: contain;
+  pointer-events: none;
+}
+.fgp-btn--brand:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.14);
+}
+.fgp-btn--brand.is-disabled {
+  opacity: 0.35;
+  filter: grayscale(0.4);
+}
+.fgp-btn--edit {
+  width: 20px; height: 20px;
+  color: rgba(0,0,0,0.4);
+}
+.fgp-btn--edit:hover { color: #007AFF; background: rgba(0,122,255,0.08); }
+.fgp-stem {
+  position: absolute;
+  left: 50%;
+  bottom: -14px;
+  width: 1.5px; height: 14px;
+  margin-left: -0.75px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.05));
+  pointer-events: none;
+}
+.f-geo-pin.is-flip .fgp-stem {
+  top: -14px; bottom: auto;
+  background: linear-gradient(0deg, rgba(255,255,255,0.55), rgba(255,255,255,0.05));
+}
+
+/* Punto brillante = coordenada exacta en la foto (ancla del pin) */
+.fgp-tip {
+  position: absolute;
+  left: 0; top: 0;
+  width: 14px; height: 14px;
+  margin: -7px 0 0 -7px;
+  pointer-events: auto;
+  cursor: grab;
+  z-index: 2;
+}
+.f-geo-pin.is-dragging .fgp-tip { cursor: grabbing; }
+.fgp-tip-glow {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(0,122,255,0.55) 40%, transparent 72%);
+  animation: fgp-pulse 1.8s ease-in-out infinite;
+}
+.fgp-tip-core {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 6px; height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 2px #007AFF, 0 0 10px rgba(0,122,255,0.85);
+}
+.f-geo-pin[data-tipo="horizonte"] .fgp-tip-glow {
+  background: radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,149,0,0.55) 40%, transparent 72%);
+}
+.f-geo-pin[data-tipo="horizonte"] .fgp-tip-core {
+  box-shadow: 0 0 0 2px #FF9500, 0 0 10px rgba(255,149,0,0.85);
+}
+.f-geo-pin[data-tipo="poi"] .fgp-tip-glow {
+  background: radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(52,199,89,0.55) 40%, transparent 72%);
+}
+.f-geo-pin[data-tipo="poi"] .fgp-tip-core {
+  box-shadow: 0 0 0 2px #34C759, 0 0 10px rgba(52,199,89,0.85);
+}
+@keyframes fgp-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.35); opacity: 0.45; }
+}
+
+#f-geo-pins-layer.is-readonly .fgp-card,
+#f-geo-pins-layer.is-readonly .fgp-tip { cursor: pointer; }
+#f-geo-pins-layer.is-readonly .f-geo-pin.is-dragging .fgp-card { cursor: pointer; }
+
+#f-geo-editor {
+  position: fixed; inset: 0; z-index: 21000;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.28s cubic-bezier(0.22,1,0.36,1);
+}
+#f-geo-editor.is-open { opacity: 1; pointer-events: auto; }
+.fge-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(10,10,14,0.42);
+  backdrop-filter: blur(18px);
+}
+.fge-sheet {
+  position: relative;
+  width: min(440px, 94vw);
+  border-radius: 20px;
+  background: rgba(246,246,248,0.92);
+  border: 1px solid rgba(255,255,255,0.7);
+  box-shadow: 0 30px 80px rgba(0,0,0,0.35);
+  backdrop-filter: blur(30px) saturate(180%);
+  overflow: hidden;
+  transform: translateY(12px) scale(0.98);
+  transition: transform 0.32s cubic-bezier(0.22,1,0.36,1);
+}
+#f-geo-editor.is-open .fge-sheet { transform: none; }
+.fge-chrome {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.2));
+}
+.fge-traffic { display: flex; gap: 7px; }
+.fge-dot { width: 11px; height: 11px; border-radius: 50%; background: #FEBC2E; }
+.fge-dot:last-child { background: #28C840; }
+.fge-close { background: #FF5F57; cursor: pointer; }
+.fge-title { flex: 1; text-align: center; font-size: 13px; font-weight: 700; color: rgba(0,0,0,0.7); }
+.fge-x {
+  width: 28px; height: 28px; border: none; border-radius: 8px;
+  background: rgba(0,0,0,0.05); cursor: pointer; color: rgba(0,0,0,0.55);
+}
+.fge-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; max-height: 60vh; overflow: auto; }
+.fge-help { font-size: 12.5px; color: rgba(0,0,0,0.5); line-height: 1.45; margin: 0; }
+.fge-hint { font-size: 11.5px; color: rgba(0,0,0,0.38); margin: 0; }
+.fge-field { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.fge-field span { font-size: 11px; font-weight: 700; color: rgba(0,0,0,0.45); text-transform: uppercase; letter-spacing: 0.04em; }
+.fge-field input, .fge-field select, .fge-field textarea {
+  border: 1px solid rgba(0,0,0,0.1); border-radius: 11px;
+  padding: 11px 12px; font: inherit; font-size: 14px; color: #1d1d1f;
+  background: rgba(255,255,255,0.75); outline: none;
+}
+.fge-field input:focus, .fge-field select:focus, .fge-field textarea:focus {
+  border-color: #007AFF; box-shadow: 0 0 0 3px rgba(0,122,255,0.18);
+}
+.fge-row { display: flex; gap: 10px; }
+.fge-metric {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 12px; border-radius: 12px;
+  background: rgba(0,122,255,0.07); border: 1px solid rgba(0,122,255,0.12);
+  font-size: 12px; color: rgba(0,0,0,0.5);
+}
+.fge-metric strong { color: #007AFF; font-size: 13px; }
+.fge-check { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: rgba(0,0,0,0.55); }
+.fge-links { display: flex; flex-direction: column; gap: 6px; }
+.fge-ext {
+  font-size: 12.5px; font-weight: 600; color: #007AFF; text-decoration: none;
+}
+.fge-ext:hover { text-decoration: underline; }
+.fge-ext--brand {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 11px;
+  background: rgba(255,255,255,0.8);
+  border: 1px solid rgba(0,0,0,0.06);
+  text-decoration: none !important;
+}
+.fge-ext--brand:hover { background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.fge-brand-ico {
+  width: 18px; height: 18px; flex-shrink: 0;
+  display: block; object-fit: contain;
+}
+
+.fge-search-wrap { position: relative; }
+.fge-sug-list {
+  display: none;
+  position: absolute; left: 0; right: 0; top: calc(100% - 2px);
+  z-index: 5;
+  max-height: 220px; overflow: auto;
+  background: rgba(255,255,255,0.96);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.14);
+  backdrop-filter: blur(16px);
+}
+.fge-sug-list.is-open { display: block; }
+.fge-sug {
+  display: block; width: 100%; text-align: left;
+  border: none; background: transparent; cursor: pointer;
+  padding: 10px 12px; font: inherit;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+.fge-sug:hover { background: rgba(0,122,255,0.06); }
+.fge-sug-name { display: block; font-size: 13px; font-weight: 700; color: #1d1d1f; }
+.fge-sug-label { display: block; font-size: 11px; color: rgba(0,0,0,0.45); margin-top: 2px; line-height: 1.3; }
+.fge-sug-loading, .fge-sug-empty {
+  padding: 12px; font-size: 12.5px; color: rgba(0,0,0,0.45);
+}
+.fge-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.fge-chip {
+  border: 1px solid rgba(0,0,0,0.1);
+  background: rgba(255,255,255,0.7);
+  border-radius: 999px;
+  padding: 7px 11px;
+  font: inherit; font-size: 12px; font-weight: 600;
+  color: rgba(0,0,0,0.55); cursor: pointer;
+}
+.fge-chip.is-on {
+  background: rgba(0,122,255,0.1);
+  border-color: rgba(0,122,255,0.35);
+  color: #007AFF;
+}
+
+.fge-nearby-tabs {
+  display: flex; gap: 6px; margin-bottom: 14px;
+  background: rgba(0,0,0,0.04); padding: 4px; border-radius: 12px;
+}
+.fge-ntab {
+  flex: 1; border: none; cursor: pointer; font: inherit;
+  font-size: 12.5px; font-weight: 650; padding: 9px 10px;
+  border-radius: 9px; background: transparent; color: rgba(0,0,0,0.45);
+}
+.fge-ntab.is-on {
+  background: #fff; color: #1d1d1f;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.fge-info-hero {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 14px; border-radius: 14px;
+  background: rgba(0,0,0,0.03); margin-bottom: 12px;
+}
+.fge-info-emoji { font-size: 28px; line-height: 1; }
+.fge-info-cat { font-size: 12px; font-weight: 700; color: rgba(0,0,0,0.45); text-transform: uppercase; letter-spacing: 0.04em; }
+.fge-info-metric { font-size: 15px; font-weight: 650; color: #1d1d1f; margin-top: 2px; }
+
+#f-geo-pins-layer.is-readonly .fgp-card,
+#f-geo-pins-layer.is-readonly .fgp-tip { cursor: pointer; }
+#f-geo-pins-layer.is-readonly .f-geo-pin.is-dragging .fgp-card { cursor: pointer; }
+
+.fge-foot {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px 16px; border-top: 1px solid rgba(0,0,0,0.06);
+}
+.fge-btn {
+  border: none; cursor: pointer; font: inherit; font-size: 13px; font-weight: 650;
+  padding: 10px 14px; border-radius: 11px;
+}
+.fge-btn--ghost { background: rgba(0,0,0,0.05); color: #1d1d1f; }
+.fge-btn--primary { background: #007AFF; color: #fff; }
+.fge-btn--primary:hover { background: #1a8fff; }
+
+#panorama-container.geo-tool-active { cursor: crosshair; }
+
+@media (max-width: 720px) {
+  #f-compass { top: 76px !important; right: 12px !important; padding: 0 !important; gap: 4px !important; }
+  .fc-orb { width: 51px !important; height: 51px !important; }
+  .fc-bearing { font-size: 9.5px !important; }
+  .fgp-card {
+    min-width: 120px;
+    max-width: min(88vw, 300px);
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: 1px solid rgba(0,0,0,0.12) !important;
+  }
+  .f-geo-pin[data-tipo="horizonte"] .fgp-card {
+    max-width: min(92vw, 340px);
+    background: #ffffff !important;
+  }
+  .f-geo-pin[data-tipo="horizonte"] .fgp-title { font-size: 12.5px; }
+}
