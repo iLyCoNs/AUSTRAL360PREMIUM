@@ -287,6 +287,105 @@
     return m ? `${h} h ${m} min` : `${h} h`;
   }
 
+  /**
+   * Horizonte = landmark visual, pero si tiene GPS (ej. Chaitén) sí conviene
+   * ruta OSRM real. La UI debe etiquetar "línea recta" vs "ruta en auto"
+   * para que el ETA no parezca “cambiar solo”.
+   */
+  function usesDrivingRoute(pin) {
+    return !!(pin && pin.lat != null && pin.lng != null);
+  }
+
+  /** Texto Distancia / ETA para UI (pins, editor, dock) */
+  function formatPinDistanceEta(pin) {
+    if (!pin) return '—';
+    const routeDist = pin._routeDistM != null ? pin._routeDistM : pin.routeDistM;
+    const routeSec = pin._routeSec != null ? pin._routeSec : pin.routeSec;
+    const src = pin._routeSource || pin.routeSource || '';
+    const hasRoute = routeDist != null && routeSec != null;
+    const hasAir = pin._distM != null;
+    const srcLabel = (src === 'google' || pin.routeManual) ? 'Google'
+      : (src === 'manual' ? 'Manual' : 'Ruta');
+    if (hasRoute && hasAir && pin.tipo === 'horizonte') {
+      return `${srcLabel} ${formatDistance(routeDist)} · ${formatEtaSeconds(routeSec)} · aire ≈ ${formatDistance(pin._distM)}`;
+    }
+    if (hasRoute) {
+      return `${srcLabel} ${formatDistance(routeDist)} · ${formatEtaSeconds(routeSec)}`;
+    }
+    if (hasAir) {
+      const base = `≈ ${formatDistance(pin._distM)} · ${formatEtaMinutes(pin._distM)}`;
+      return pin.tipo === 'horizonte' ? `${base} (línea recta · calculando ruta…)` : base;
+    }
+    return '—';
+  }
+
+  function _clearDrivingRoute(pin) {
+    if (!pin) return;
+    pin._routeDistM = null;
+    pin._routeSec = null;
+    pin._routeSource = null;
+    if (pin._routeDurationS != null) pin._routeDurationS = null;
+    // No borrar routeManual persistido aquí — solo runtime OSRM
+  }
+
+  function _syncRouteRuntime(pin) {
+    if (!pin) return;
+    if (pin.routeDistM != null && pin.routeSec != null) {
+      pin._routeDistM = pin.routeDistM;
+      pin._routeSec = pin.routeSec;
+      pin._routeSource = pin.routeSource || (pin.routeManual ? 'google' : 'osrm');
+    }
+  }
+
+  /** Aplica km + ETA (minutos totales) como ruta Google/manual (no la pisa OSRM). */
+  function setManualRoute(pinOrId, distKm, etaMinutes, source) {
+    const pin = typeof pinOrId === 'string' ? getPin(pinOrId) : pinOrId;
+    if (!pin) return false;
+    const km = Number(distKm);
+    const mins = Number(etaMinutes);
+    if (!(km > 0) || !(mins > 0) || isNaN(km) || isNaN(mins)) return false;
+    pin.routeDistM = Math.round(km * 1000);
+    pin.routeSec = Math.round(mins * 60);
+    pin.routeSource = source || 'google';
+    pin.routeManual = true;
+    _syncRouteRuntime(pin);
+    _touch();
+    _markDirty();
+    saveLocal();
+    _notify();
+    if (window.FerrariGeoPins && window.FerrariGeoPins.markDirty) {
+      window.FerrariGeoPins.markDirty();
+    }
+    return true;
+  }
+
+  /** Parsea textos tipo Google: "194 km", "6 h 26 min", "6h 26m" */
+  function parseGoogleRouteText(distText, etaText) {
+    const distRaw = String(distText || '').trim().toLowerCase().replace(',', '.');
+    const etaRaw = String(etaText || '').trim().toLowerCase().replace(',', '.');
+    let distKm = null;
+    const kmMatch = distRaw.match(/([\d.]+)\s*km/) || distRaw.match(/^([\d.]+)$/);
+    if (kmMatch) distKm = parseFloat(kmMatch[1]);
+    else {
+      const mOnly = distRaw.match(/([\d.]+)\s*m(?:etros?)?$/);
+      if (mOnly) distKm = parseFloat(mOnly[1]) / 1000;
+    }
+
+    let etaMin = null;
+    if (etaRaw) {
+      const h = etaRaw.match(/([\d.]+)\s*h/);
+      const m = etaRaw.match(/([\d.]+)\s*m/);
+      const onlyMin = etaRaw.match(/^([\d.]+)$/);
+      if (h || m) {
+        etaMin = (h ? parseFloat(h[1]) * 60 : 0) + (m ? parseFloat(m[1]) : 0);
+      } else if (onlyMin) {
+        etaMin = parseFloat(onlyMin[1]);
+      }
+    }
+    if (!(distKm > 0) || !(etaMin > 0)) return null;
+    return { distKm, etaMin };
+  }
+
   // ─── Rutas reales (OSRM / OpenStreetMap: calles + ferries mapeados) ──
   const _routeCache = new Map();
   let _routeQueue = Promise.resolve();
@@ -335,15 +434,25 @@
 
   async function enrichPinRoutes(force) {
     if (!state.droneOrigin) return;
-    const pins = state.pins.filter(p => p.lat != null && p.lng != null);
+    const pins = state.pins.filter(p =>
+      p.lat != null && p.lng != null && usesDrivingRoute(p)
+    );
     let changed = false;
     for (const pin of pins) {
+      // Ruta pegada desde Google: no pisar con OSRM (falla con ferries Carretera Austral)
+      if (pin.routeManual) {
+        _syncRouteRuntime(pin);
+        continue;
+      }
       if (!force && pin._routeDistM != null && pin._routeSec != null) continue;
       const route = await fetchDrivingRoute(pin.lat, pin.lng);
       if (route) {
         pin._routeDistM = route.distM;
         pin._routeSec = route.durationSec;
         pin._routeSource = route.source;
+        pin.routeDistM = route.distM;
+        pin.routeSec = route.durationSec;
+        pin.routeSource = route.source;
         changed = true;
       }
     }
@@ -458,15 +567,26 @@
       if (data && data.autoYaw !== false) {
         pin.yaw = bearingToYaw(brg);
       }
-      fetchDrivingRoute(pin.lat, pin.lng).then(route => {
-        if (!route) return;
-        pin._routeDistM = route.distM;
-        pin._routeSec = route.durationSec;
-        pin._routeSource = route.source;
-        if (window.FerrariGeoPins && window.FerrariGeoPins.markDirty) {
-          window.FerrariGeoPins.markDirty();
+      if (usesDrivingRoute(pin)) {
+        if (pin.routeManual) {
+          _syncRouteRuntime(pin);
+        } else {
+          fetchDrivingRoute(pin.lat, pin.lng).then(route => {
+            if (!route || pin.routeManual) return;
+            pin._routeDistM = route.distM;
+            pin._routeSec = route.durationSec;
+            pin._routeSource = route.source;
+            pin.routeDistM = route.distM;
+            pin.routeSec = route.durationSec;
+            pin.routeSource = route.source;
+            if (window.FerrariGeoPins && window.FerrariGeoPins.markDirty) {
+              window.FerrariGeoPins.markDirty();
+            }
+          }).catch(() => {});
         }
-      }).catch(() => {});
+      } else {
+        _clearDrivingRoute(pin);
+      }
     }
 
     state.pins.push(pin);
@@ -484,19 +604,38 @@
     if (pin.lat != null && pin.lng != null && state.droneOrigin) {
       pin._distM = distanceFromOrigin(pin.lat, pin.lng);
       pin._bearing = bearingDeg(state.droneOrigin.lat, state.droneOrigin.lng, pin.lat, pin.lng);
-      if (patch.lat != null || patch.lng != null) {
+      if (!usesDrivingRoute(pin)) {
+        _clearDrivingRoute(pin);
+      } else if (pin.routeManual && patch.routeManual !== false) {
+        _syncRouteRuntime(pin);
+      } else if (patch.lat != null || patch.lng != null || patch.tipo != null) {
+        if (patch.routeManual == null) {
+          pin.routeManual = false;
+          pin.routeDistM = null;
+          pin.routeSec = null;
+          pin.routeSource = null;
+        }
         pin._routeDistM = null;
         pin._routeSec = null;
         fetchDrivingRoute(pin.lat, pin.lng).then(route => {
-          if (!route) return;
+          if (!route || pin.routeManual) return;
           pin._routeDistM = route.distM;
           pin._routeSec = route.durationSec;
           pin._routeSource = route.source;
+          pin.routeDistM = route.distM;
+          pin.routeSec = route.durationSec;
+          pin.routeSource = route.source;
           if (window.FerrariGeoPins && window.FerrariGeoPins.markDirty) {
             window.FerrariGeoPins.markDirty();
           }
         }).catch(() => {});
+      } else if (patch.routeManual || patch.routeDistM != null) {
+        _syncRouteRuntime(pin);
       }
+    } else {
+      pin._distM = null;
+      pin._bearing = null;
+      _clearDrivingRoute(pin);
     }
     _touch();
     _markDirty();
@@ -525,6 +664,7 @@
       if (pin.lat != null && pin.lng != null && state.droneOrigin) {
         pin._distM = distanceFromOrigin(pin.lat, pin.lng);
         pin._bearing = bearingDeg(state.droneOrigin.lat, state.droneOrigin.lng, pin.lat, pin.lng);
+        _syncRouteRuntime(pin);
       } else {
         pin._distM = null;
         pin._bearing = null;
@@ -532,7 +672,7 @@
         pin._routeSec = null;
       }
     });
-    // Rutas reales en segundo plano (calles / ferries OSM)
+    // Rutas reales en segundo plano (calles / ferries OSM) — no pisa routeManual
     enrichPinRoutes(true).catch(() => {});
   }
 
@@ -572,7 +712,12 @@
         lng: p.lng,
         notas: p.notas || '',
         lockYaw: !!p.lockYaw,
-        createdAt: p.createdAt
+        createdAt: p.createdAt,
+        // Ruta persistida (Google/manual/OSRM) — sobrevive a recargas
+        routeDistM: p.routeDistM != null ? p.routeDistM : (p._routeDistM != null ? p._routeDistM : null),
+        routeSec: p.routeSec != null ? p.routeSec : (p._routeSec != null ? p._routeSec : null),
+        routeSource: p.routeSource || p._routeSource || null,
+        routeManual: !!p.routeManual
       }))
     };
   }
@@ -697,6 +842,10 @@
     formatDistance,
     formatEtaMinutes,
     formatEtaSeconds,
+    formatPinDistanceEta,
+    usesDrivingRoute,
+    setManualRoute,
+    parseGoogleRouteText,
     fetchDrivingRoute,
     enrichPinRoutes,
     distanceFromOrigin,

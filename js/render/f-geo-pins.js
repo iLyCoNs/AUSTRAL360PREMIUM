@@ -321,7 +321,11 @@
     }
 
     let line2 = meta.label;
-    if (pin._routeDistM != null && pin._routeSec != null) {
+    if (window.FerrariGeo.formatPinDistanceEta) {
+      const m = window.FerrariGeo.formatPinDistanceEta(pin);
+      if (m && m !== '—') line2 = m;
+      else if (pin.lat != null) line2 = 'Sin origen dron';
+    } else if (pin._routeDistM != null && pin._routeSec != null) {
       line2 = `${window.FerrariGeo.formatDistance(pin._routeDistM)} · ${window.FerrariGeo.formatEtaSeconds(pin._routeSec)}`;
     } else if (pin._distM != null) {
       line2 = `≈ ${window.FerrariGeo.formatDistance(pin._distM)} · ${window.FerrariGeo.formatEtaMinutes(pin._distM)}`;
