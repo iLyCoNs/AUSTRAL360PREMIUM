@@ -380,6 +380,20 @@
       box-shadow: 0 0 0 3px var(--accent-glow), 0 0 20px rgba(0,180,255,0.06);
     }
     .efield select option { background: #1a1a24; }
+    /* Windows/Chrome: optgroup sale blanco y tapa el texto — forzar tema oscuro */
+    .efield select,
+    select.kpk-dark-select {
+      color-scheme: dark;
+      background-color: #16161e;
+      color: #f0f0f5;
+    }
+    .efield select option,
+    .efield select optgroup,
+    select.kpk-dark-select option,
+    select.kpk-dark-select optgroup {
+      background-color: #16161e !important;
+      color: #f0f0f5 !important;
+    }
 
     /* Estado selector — neon */
     .estado-sel { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; grid-column: 1/-1; }
@@ -1305,7 +1319,7 @@
 
           <div class="efield full">
             <label>Proveedor de Inteligencia Artificial (Copiloto)</label>
-            <select id="brand-ai-provider" onchange="onAIProviderChange()" style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; outline: none; font-family: inherit;">
+            <select id="brand-ai-provider" class="kpk-dark-select" onchange="onAIProviderChange()" style="width: 100%; padding: 10px; border-radius: 8px; background: #16161e; border: 1px solid rgba(255,255,255,0.1); color: #f0f0f5; outline: none; font-family: inherit;">
               <option value="gemini">Google AI Studio (Gemini)</option>
               <option value="groq">Groq API (Llama / Gemma)</option>
               <option value="openrouter" selected>OpenRouter API</option>
@@ -1338,11 +1352,15 @@
 
           <div class="efield full">
             <label>Voz predeterminada (cuando TTS esté ON)</label>
-            <select id="brand-ai-voice" style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; outline: none; font-family: inherit;">
-              <optgroup label="JARVIS"><option value="jarvis_charon">JARVIS Charon</option></optgroup>
-              <optgroup label="Recomendado"><option value="auto_gigi" selected>Auto · Gigi / Mia</option></optgroup>
-              <optgroup label="ElevenLabs"><option value="elevenlabs_gigi">Gigi Bella</option><option value="elevenlabs_daniel">Daniel</option></optgroup>
-              <optgroup label="Gratis"><option value="local_dalia">Dalia Neural</option><option value="stream_gigi">Mia MX</option><option value="stream_lucia">Lucía ES</option><option value="webspeech">Web Speech</option></optgroup>
+            <select id="brand-ai-voice" class="kpk-dark-select" style="width: 100%; padding: 10px; border-radius: 8px; background: #16161e; border: 1px solid rgba(255,255,255,0.1); color: #f0f0f5; outline: none; font-family: inherit;">
+              <option value="jarvis_charon">JARVIS · Charon</option>
+              <option value="auto_gigi" selected>Auto · Gigi / Mia</option>
+              <option value="elevenlabs_gigi">ElevenLabs · Gigi Bella</option>
+              <option value="elevenlabs_daniel">ElevenLabs · Daniel</option>
+              <option value="local_dalia">Gratis · Dalia Neural</option>
+              <option value="stream_gigi">Gratis · Mia MX</option>
+              <option value="stream_lucia">Gratis · Lucía ES</option>
+              <option value="webspeech">Otras · Web Speech</option>
             </select>
           </div>
 
