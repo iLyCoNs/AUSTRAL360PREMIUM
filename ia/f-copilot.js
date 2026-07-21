@@ -3092,6 +3092,18 @@
   let _localTtsOk = null; // null=unknown, true/false
   let _localTtsCheckedAt = 0;
 
+  /** true solo en desarrollo local — nunca sondear 127.0.0.1 desde github.io (Chrome pide "apps en este dispositivo") */
+  function _mayProbeLoopbackTts() {
+    try {
+      const h = (location.hostname || '').toLowerCase();
+      if (h === 'localhost' || h === '127.0.0.1' || h === '[::1]') return true;
+      if (location.protocol === 'http:' && /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h)) return true;
+      // file:// o host vacío
+      if (location.protocol === 'file:' || !h) return true;
+    } catch (e) {}
+    return false;
+  }
+
   function _configuredTtsProxyUrl() {
     try {
       const fromLs = (localStorage.getItem('kpk_tts_proxy_url') || '').trim();
@@ -3142,7 +3154,13 @@
       console.warn('[Gigi/Voz] Puente TTS remoto no responde:', remote);
     }
 
-    // 2) Localhost (solo tu PC / http local)
+    // 2) Localhost solo en PC/dev. En ilycons.github.io NO: dispara permiso
+    // "acceder a otros servicios y apps en este dispositivo" (Chrome Local Network / Apps on device).
+    if (!_mayProbeLoopbackTts()) {
+      _localTtsCheckedAt = Date.now();
+      return false;
+    }
+
     for (const port of LOCAL_TTS_PORTS) {
       const base = 'http://127.0.0.1:' + port;
       if (await _probeOneTtsBase(base, 1200)) {

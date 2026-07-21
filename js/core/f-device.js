@@ -1,25 +1,20 @@
 /**
  * f-device.js — Detección de capacidad del dispositivo para adaptar Ferrari360
  *
- * Determina un tier (high / mid / low) basado en:
- *  - WebGL MAX_TEXTURE_SIZE
- *  - Memoria del dispositivo (navigator.deviceMemory)
- *  - Núcleos de CPU (navigator.hardwareConcurrency)
- *  - Resolución de pantalla
- *  - User-Agent (Samsung Galaxy, mid-range Android)
+ * Tier (high / mid / low) según WebGL, RAM, CPU, pantalla y UA.
+ * Galaxy Tab S7 FE y tablets Android similares: mid (4096) por defecto
+ * (mejor calidad que 2048, sin saturar GPU como 8192).
  *
- * Expone window.FerrariDevice con el tier y el ancho máximo recomendado.
+ * Override URL: ?tex=2048|4096|8192  o  ?tier=low|mid|high
  */
 
 'use strict';
 
 (function() {
 
-  // Tamaño original conocido de loteo360.jpg
   const ORIGINAL_WIDTH  = 12000;
   const ORIGINAL_HEIGHT = 6000;
 
-  // Anchos máximos objetivo por tier (en píxeles de ancho de la equirectangular)
   const LIMITS = {
     high: 8192,
     mid:  4096,
@@ -30,28 +25,111 @@
   let _limit = LIMITS.high;
   let _maxTexSize = 0;
   let _detected   = false;
-  let _externalTexSize = 0; // seteado externamente (f-init) para evitar doble contexto WebGL
+  let _externalTexSize = 0;
+  let _isTablet = false;
+  let _isPhone = false;
+  let _maxDpr = 2;
+
+  function _ua() {
+    return (navigator.userAgent || '').toLowerCase();
+  }
+
+  function _isSamsungDevice() {
+    var ua = _ua();
+    return ua.indexOf('samsung') >= 0 ||
+           ua.indexOf('galaxy') >= 0 ||
+           /sm-[a-z0-9]+/i.test(navigator.userAgent || '');
+  }
+
+  /** Teléfonos Android/iOS (Poco F5, etc.) — info; no se limita a mid */
+  function _detectPhone() {
+    var ua = _ua();
+    try {
+      if (navigator.userAgentData && navigator.userAgentData.mobile === true) return true;
+    } catch (e) {}
+    if (/iphone|ipod|windows phone/.test(ua)) return true;
+    if (/android/.test(ua) && !_detectTablet()) return true;
+    // Pantalla “phone-like” en portrait/landscape
+    var w = Math.max(screen.width || 0, screen.height || 0);
+    var h = Math.min(screen.width || 0, screen.height || 0);
+    if (/android|mobile/.test(ua) && w > 0 && h > 0 && (w / h) >= 1.6 && w < 1400) return true;
+    return false;
+  }
+
+  /** Tab S7 FE (SM-T73x), Tab S7/S8/S9 y Android tablet genérico */
+  function _detectTablet() {
+    var ua = _ua();
+    var screenW = Math.max(screen.width || 0, screen.height || 0);
+    var screenH = Math.min(screen.width || 0, screen.height || 0);
+    if (/sm-t7|sm-t8|sm-t9|sm-x7|sm-x8|galaxy tab|gts7|gts8|gts9/.test(ua)) return true;
+    if (ua.indexOf('android') >= 0 && screenW >= 1000 && (screenW / Math.max(1, screenH)) < 1.6) return true;
+    if (ua.indexOf('tablet') >= 0) return true;
+    try {
+      if (navigator.userAgentData && navigator.userAgentData.mobile === false &&
+          ua.indexOf('android') >= 0 && screenW >= 1200) return true;
+    } catch (e) {}
+    return false;
+  }
+
+  function _urlOverride() {
+    try {
+      var q = new URLSearchParams(window.location.search);
+      var tex = parseInt(q.get('tex'), 10);
+      var tier = (q.get('tier') || '').toLowerCase();
+      if (tex === 2048 || tex === 4096 || tex === 8192) {
+        return { tier: tex <= 2048 ? 'low' : (tex <= 4096 ? 'mid' : 'high'), maxWidth: tex };
+      }
+      if (tier === 'low' || tier === 'mid' || tier === 'high') {
+        return { tier: tier, maxWidth: LIMITS[tier] };
+      }
+    } catch (e) {}
+    return null;
+  }
 
   function detect() {
-    if (_detected) return { tier: _tier, maxWidth: _limit, maxTextureSize: _maxTexSize };
+    if (_detected) {
+      return {
+        tier: _tier,
+        maxWidth: _limit,
+        maxTextureSize: _maxTexSize,
+        isTablet: _isTablet,
+        isPhone: _isPhone,
+        maxDpr: _maxDpr
+      };
+    }
     _detected = true;
+    _isTablet = _detectTablet();
+    _isPhone = !_isTablet && _detectPhone();
+
+    var override = _urlOverride();
+    if (override) {
+      _tier = override.tier;
+      _limit = override.maxWidth;
+      // Solo tablets: techo mid en override (teléfonos potentes sí pueden 8192 / original)
+      if (_isTablet && _limit > LIMITS.mid) {
+        _limit = LIMITS.mid;
+        _tier = 'mid';
+      }
+      _maxTexSize = _detectMaxTextureSize();
+      _limit = _resolveLimitForGpu(_limit, _tier);
+      _maxDpr = _tier === 'high' ? 2 : (_tier === 'mid' ? 1.35 : 1.15);
+      console.log('[Ferrari/Device] Override URL → Tier:', _tier, '| maxWidth:', _limit,
+        '| phone:', _isPhone, '| tablet:', _isTablet);
+      return { tier: _tier, maxWidth: _limit, maxTextureSize: _maxTexSize, isTablet: _isTablet, isPhone: _isPhone, maxDpr: _maxDpr };
+    }
 
     var score = 0;
-
-    // 1. WebGL MAX_TEXTURE_SIZE
     _maxTexSize = _detectMaxTextureSize();
 
-    // 2. Memoria del dispositivo (solo Chrome / Chromium)
     var mem = navigator.deviceMemory;
     if (mem !== undefined) {
       if (mem >= 6)      score += 3;
       else if (mem >= 4) score += 2;
       else               score += 1;
     } else {
-      score += 2; // neutral
+      score += 2;
     }
 
-    // 3. Núcleos de CPU
     var cores = navigator.hardwareConcurrency;
     if (cores !== undefined) {
       if (cores >= 8)      score += 3;
@@ -61,54 +139,90 @@
       score += 2;
     }
 
-    // 4. Resolución de pantalla (píxeles totales)
     var screenPx = (screen.width || 1920) * (screen.height || 1080);
-    if (screenPx > 4000000)       score += 2;  // > 4MP (WQHD, tablets grandes)
-    else if (screenPx > 2000000)  score += 1;  // ~2-4MP (FHD+)
-    // < 2MP → 0
+    if (screenPx > 4000000)      score += 2;
+    else if (screenPx > 2000000) score += 1;
 
-    // 5. Penalización Samsung / mid-range Android
-    var ua = navigator.userAgent.toLowerCase();
-    var isSamsung = ua.indexOf('samsung') >= 0 || ua.indexOf('galaxy') >= 0;
-    var isMidRange = (cores !== undefined && cores <= 8) || (mem !== undefined && mem <= 6);
-    if (isSamsung && isMidRange) score -= 1;
+    var isSamsung = _isSamsungDevice();
+    if (isSamsung && ((cores !== undefined && cores <= 8) || (mem !== undefined && mem <= 6))) {
+      score -= 1;
+    }
 
-    // 5b. Samsung tablet con pantalla grande y sin deviceMemory o poca RAM
-    //     Detecta Galaxy Tab S7 FE y similares (2560×1600, 4GB)
-    //     Forzar low tier para evitar texturas de 8192px que saturan la GPU
-    var screenW = Math.max(screen.width || 0, screen.height || 0);
-    if (isSamsung && screenW >= 2000 && (mem === undefined || mem <= 4)) score -= 4;
-
-    // 6. Ajuste por MAX_TEXTURE_SIZE real
+    // Tablets Samsung / Android grandes: no high (8192). Preferir mid (4096).
+    // Antes score-=4 forzaba low(2048) y la imagen se veía blanda en Tab S7 FE.
+    if (_isTablet || (isSamsung && Math.max(screen.width || 0, screen.height || 0) >= 1800)) {
+      score -= 2;
+      if (score >= 6) score = 5; // techo mid
+    }
     if (_maxTexSize > 0) {
       if (_maxTexSize >= 8192)      score += 2;
       else if (_maxTexSize >= 4096) score += 0;
-      else                          score -= 2;  // < 4096 → low-end
+      else                          score -= 2;
     }
 
-    // Asignar tier
     if (score >= 6) { _tier = 'high'; _limit = LIMITS.high; }
     else if (score >= 3) { _tier = 'mid'; _limit = LIMITS.mid; }
     else { _tier = 'low'; _limit = LIMITS.low; }
 
-    // Si el MAX_TEXTURE_SIZE es menor que el límite elegido, forzar baja
-    if (_maxTexSize > 0 && _limit > _maxTexSize) {
-      _limit = Math.min(_limit, _maxTexSize);
-      if (_limit <= 2048)      _tier = 'low';
-      else if (_limit <= 4096) _tier = 'mid';
+    // Solo tablets: techo mid. Teléfonos high (Poco F5) se dejan en high.
+    if (_isTablet && _tier === 'high') {
+      _tier = 'mid';
+      _limit = LIMITS.mid;
     }
 
-    console.log('[Ferrari/Device] Tier:', _tier, '| maxWidth:', _limit, '| MAX_TEXTURE_SIZE:', _maxTexSize, '| score:', score);
+    // Si la GPU puede cargar el original, no forzar downscale a 8192
+    // (ese resize es lo que colgaba en "Ajustando resolución…").
+    _limit = _resolveLimitForGpu(_limit, _tier);
 
-    return { tier: _tier, maxWidth: _limit, maxTextureSize: _maxTexSize };
+    // DPR: tablets mid/low → menos píxeles de framebuffer = más FPS
+    if (_tier === 'high') _maxDpr = 2;
+    else if (_tier === 'mid') _maxDpr = _isTablet ? 1.35 : 1.5;
+    else _maxDpr = 1.15;
+
+    console.log('[Ferrari/Device] Tier:', _tier, '| maxWidth:', _limit,
+      '| MAX_TEXTURE_SIZE:', _maxTexSize, '| score:', score,
+      '| phone:', _isPhone, '| tablet:', _isTablet, '| maxDpr:', _maxDpr);
+
+    return {
+      tier: _tier,
+      maxWidth: _limit,
+      maxTextureSize: _maxTexSize,
+      isTablet: _isTablet,
+      isPhone: _isPhone,
+      maxDpr: _maxDpr
+    };
   }
 
   function setMaxTextureSize(size) {
     _externalTexSize = size;
   }
 
+  /** Pannellum equirect: falla si max(width/2, height) > MAX_TEXTURE_SIZE */
+  function _gpuCanLoadOriginal(maxTex) {
+    if (!maxTex || maxTex <= 0) return false;
+    return Math.max(ORIGINAL_WIDTH / 2, ORIGINAL_HEIGHT) <= maxTex;
+  }
+
+  /**
+   * High + GPU OK → límite = original (sin reescalar en JS).
+   * Si no, respetar tier y no pedir más de lo que aguanta la GPU.
+   */
+  function _resolveLimitForGpu(limit, tier) {
+    if (tier === 'high' && _gpuCanLoadOriginal(_maxTexSize)) {
+      return ORIGINAL_WIDTH;
+    }
+    if (_maxTexSize > 0) {
+      // Equirect: ancho útil hasta ~2*maxTex; height = width/2
+      var gpuCap = _maxTexSize * 2;
+      if (_maxTexSize < 4096) gpuCap = _maxTexSize;
+      limit = Math.min(limit, gpuCap);
+      if (limit <= 2048) _tier = 'low';
+      else if (limit <= 4096 && tier !== 'high') _tier = 'mid';
+    }
+    return limit;
+  }
+
   function _detectMaxTextureSize() {
-    // Si f-init ya pasó el valor, no crear otro contexto WebGL
     if (_externalTexSize > 0) return _externalTexSize;
     var c = document.createElement('canvas');
     var names = ['webgl2', 'webgl', 'experimental-webgl'];
@@ -138,14 +252,52 @@
     return _tier;
   }
 
+  function isTablet() {
+    detect();
+    return _isTablet;
+  }
+
+  function isPhone() {
+    detect();
+    return _isPhone;
+  }
+
+  function getMaxDpr() {
+    detect();
+    return _maxDpr;
+  }
+
   function getOriginalWidth() { return ORIGINAL_WIDTH; }
   function getOriginalHeight() { return ORIGINAL_HEIGHT; }
+
+  /** Baja un escalón de calidad (para reintento tras error WebGL / timeout) */
+  function stepDown() {
+    detect();
+    if (_tier === 'high') { _tier = 'mid'; _limit = LIMITS.mid; }
+    else if (_tier === 'mid') { _tier = 'low'; _limit = LIMITS.low; }
+    else if (_limit > 1024) { _limit = 1024; }
+    if (_maxTexSize > 0) _limit = Math.min(_limit, _maxTexSize);
+    _maxDpr = (_isPhone || _isTablet || _tier === 'low') ? 1.1 : 1.25;
+    console.warn('[Ferrari/Device] stepDown →', _tier, _limit);
+    return {
+      tier: _tier,
+      maxWidth: _limit,
+      maxTextureSize: _maxTexSize,
+      isTablet: _isTablet,
+      isPhone: _isPhone,
+      maxDpr: _maxDpr
+    };
+  }
 
   window.FerrariDevice = {
     detect: detect,
     needsDownscale: needsDownscale,
     getMaxWidth: getMaxWidth,
     getTier: getTier,
+    isTablet: isTablet,
+    isPhone: isPhone,
+    getMaxDpr: getMaxDpr,
+    stepDown: stepDown,
     setMaxTextureSize: setMaxTextureSize,
     getOriginalWidth: getOriginalWidth,
     getOriginalHeight: getOriginalHeight

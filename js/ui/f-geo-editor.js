@@ -238,12 +238,6 @@
         ? 'Ej: Ruta 225, acceso norte…'
         : 'Ej: Hospital, Copec…';
 
-    const routeDistM = pin.routeDistM != null ? pin.routeDistM : pin._routeDistM;
-    const routeSec = pin.routeSec != null ? pin.routeSec : pin._routeSec;
-    const routeKmVal = routeDistM != null ? (routeDistM / 1000).toFixed(1) : '';
-    const routeEtaH = routeSec != null ? Math.floor(routeSec / 3600) : '';
-    const routeEtaM = routeSec != null ? Math.round((routeSec % 3600) / 60) : '';
-
     document.getElementById('fge-body').innerHTML = `
       <div class="fge-search-wrap">
         <label class="fge-field"><span>Buscar lugar (auto-coordenadas)</span>
@@ -269,29 +263,6 @@
         <span>Distancia / ETA desde origen</span>
         <strong id="fge-metric">${dist}</strong>
       </div>
-      <div class="fge-google-route">
-        <div class="fge-field"><span>Ruta Google (real · con ferry)</span></div>
-        <p class="fge-hint" style="margin:0 0 8px">OSRM se equivoca en Carretera Austral. Abre Google Maps, copia km y tiempo (ej. 194 km · 6 h 26 min) y pégalos aquí.</p>
-        <div class="fge-row">
-          <label class="fge-field"><span>Km (Google)</span>
-            <input id="fge-g-km" type="text" inputmode="decimal" value="${_esc(routeKmVal)}" placeholder="194">
-          </label>
-          <label class="fge-field"><span>Horas</span>
-            <input id="fge-g-h" type="number" min="0" step="1" value="${routeEtaH}" placeholder="6">
-          </label>
-          <label class="fge-field"><span>Min</span>
-            <input id="fge-g-m" type="number" min="0" max="59" step="1" value="${routeEtaM}" placeholder="26">
-          </label>
-        </div>
-        <label class="fge-field" style="margin-top:8px"><span>O pega el texto de Google</span>
-          <input id="fge-g-paste" type="text" placeholder="194 km · 6 h 26 min" autocomplete="off">
-        </label>
-        <div class="fge-row" style="margin-top:8px;gap:8px;flex-wrap:wrap">
-          <button type="button" class="fge-btn" id="fge-g-apply">Usar valores Google</button>
-          <button type="button" class="fge-btn" id="fge-g-open">Abrir ruta en Google</button>
-          ${pin.routeManual ? '<button type="button" class="fge-btn" id="fge-g-clear">Quitar override</button>' : ''}
-        </div>
-      </div>
       <label class="fge-field"><span>Notas</span>
         <textarea id="fge-notas" rows="2" placeholder="Detalle comercial para el comprador…">${_esc(pin.notas || '')}</textarea>
       </label>
@@ -303,7 +274,6 @@
     `;
 
     _updateLinks(pin);
-    _bindGoogleRouteUi(pin);
     _bindSearch('fge-search', 'fge-sug', (item) => {
       document.getElementById('fge-label').value = item.name;
       document.getElementById('fge-search').value = item.name;
@@ -480,104 +450,6 @@
     _root.classList.add('is-open');
   }
 
-  function _bindGoogleRouteUi(pin) {
-    const applyBtn = document.getElementById('fge-g-apply');
-    const openBtn = document.getElementById('fge-g-open');
-    const clearBtn = document.getElementById('fge-g-clear');
-    const pasteEl = document.getElementById('fge-g-paste');
-
-    if (pasteEl) {
-      pasteEl.addEventListener('change', () => {
-        const raw = pasteEl.value.trim();
-        if (!raw) return;
-        // "194 km · 6 h 26 min" o "194 km 6 h 26 min"
-        const parts = raw.split(/[|\u00B7]+/).map(s => s.trim()).filter(Boolean);
-        let distPart = parts[0] || raw;
-        let etaPart = parts[1] || '';
-        if (!etaPart) {
-          const m = raw.match(/([\d.,]+\s*km)\s*(.+)/i);
-          if (m) { distPart = m[1]; etaPart = m[2]; }
-        }
-        const parsed = window.FerrariGeo.parseGoogleRouteText(distPart, etaPart);
-        if (!parsed) return;
-        const kmEl = document.getElementById('fge-g-km');
-        const hEl = document.getElementById('fge-g-h');
-        const mEl = document.getElementById('fge-g-m');
-        if (kmEl) kmEl.value = String(parsed.distKm);
-        if (hEl) hEl.value = String(Math.floor(parsed.etaMin / 60));
-        if (mEl) mEl.value = String(Math.round(parsed.etaMin % 60));
-      });
-    }
-
-    if (applyBtn) {
-      applyBtn.addEventListener('click', () => {
-        const kmRaw = (document.getElementById('fge-g-km') && document.getElementById('fge-g-km').value) || '';
-        const h = parseFloat((document.getElementById('fge-g-h') && document.getElementById('fge-g-h').value) || '0') || 0;
-        const m = parseFloat((document.getElementById('fge-g-m') && document.getElementById('fge-g-m').value) || '0') || 0;
-        let distKm = parseFloat(String(kmRaw).replace(',', '.').replace(/[^\d.]/g, ''));
-        let etaMin = h * 60 + m;
-        const paste = (document.getElementById('fge-g-paste') && document.getElementById('fge-g-paste').value || '').trim();
-        if (paste && (!(distKm > 0) || !(etaMin > 0))) {
-          const parts = paste.split(/[|\u00B7]+/).map(s => s.trim()).filter(Boolean);
-          const parsed = window.FerrariGeo.parseGoogleRouteText(parts[0] || paste, parts[1] || '');
-          if (parsed) {
-            distKm = parsed.distKm;
-            etaMin = parsed.etaMin;
-          }
-        }
-        if (!(distKm > 0) || !(etaMin > 0)) {
-          window.FerrariUI && window.FerrariUI.showToast('Ingresa km y tiempo de Google (ej. 194 y 6 h 26 min).', 'error');
-          return;
-        }
-        if (!window.FerrariGeo.setManualRoute(_pinId, distKm, etaMin, 'google')) {
-          window.FerrariUI && window.FerrariUI.showToast('No se pudo aplicar la ruta Google.', 'error');
-          return;
-        }
-        const updated = window.FerrariGeo.getPin(_pinId);
-        const metric = document.getElementById('fge-metric');
-        if (metric && updated) metric.textContent = window.FerrariGeo.formatPinDistanceEta(updated);
-        window.FerrariUI && window.FerrariUI.showToast(`✓ Ruta Google: ${distKm} km · ${window.FerrariGeo.formatEtaSeconds(etaMin * 60)}`, 'success');
-      });
-    }
-
-    if (openBtn) {
-      openBtn.addEventListener('click', () => {
-        const lat = parseFloat(document.getElementById('fge-lat').value);
-        const lng = parseFloat(document.getElementById('fge-lng').value);
-        if (isNaN(lat) || isNaN(lng)) {
-          window.FerrariUI && window.FerrariUI.showToast('Faltan coordenadas del destino.', 'error');
-          return;
-        }
-        const links = window.FerrariGeo.mapsLinks(lat, lng);
-        window.open(links.google, '_blank', 'noopener');
-      });
-    }
-
-    if (clearBtn) {
-      clearBtn.addEventListener('click', () => {
-        window.FerrariGeo.updatePin(_pinId, {
-          routeManual: false,
-          routeDistM: null,
-          routeSec: null,
-          routeSource: null
-        });
-        const p = window.FerrariGeo.getPin(_pinId);
-        if (p) {
-          p.routeManual = false;
-          p.routeDistM = null;
-          p.routeSec = null;
-          p.routeSource = null;
-          p._routeDistM = null;
-          p._routeSec = null;
-        }
-        window.FerrariGeo.enrichPinRoutes(true).catch(() => {});
-        const metric = document.getElementById('fge-metric');
-        if (metric && p) metric.textContent = window.FerrariGeo.formatPinDistanceEta(p);
-        window.FerrariUI && window.FerrariUI.showToast('Override Google quitado · se recalcula OSRM.', 'info');
-      });
-    }
-  }
-
   function _refreshMetric() {
     const latEl = document.getElementById('fge-lat');
     const lngEl = document.getElementById('fge-lng');
@@ -690,21 +562,6 @@
       }
 
       const patch = { titulo, categoria, lat, lng, notas, lockYaw: !autoYaw };
-
-      // Si el usuario dejó km/ETA Google rellenos, persistirlos al Guardar
-      const kmRaw = (document.getElementById('fge-g-km') && document.getElementById('fge-g-km').value) || '';
-      const gH = parseFloat((document.getElementById('fge-g-h') && document.getElementById('fge-g-h').value) || '');
-      const gM = parseFloat((document.getElementById('fge-g-m') && document.getElementById('fge-g-m').value) || '');
-      const distKm = parseFloat(String(kmRaw).replace(',', '.').replace(/[^\d.]/g, ''));
-      if (distKm > 0 && ((gH > 0 || gM > 0) || !isNaN(gH) || !isNaN(gM))) {
-        const etaMin = (isNaN(gH) ? 0 : gH) * 60 + (isNaN(gM) ? 0 : gM);
-        if (etaMin > 0) {
-          patch.routeDistM = Math.round(distKm * 1000);
-          patch.routeSec = Math.round(etaMin * 60);
-          patch.routeSource = 'google';
-          patch.routeManual = true;
-        }
-      }
 
       if (autoYaw && lat != null && lng != null && window.FerrariGeo.droneOrigin) {
         const brg = window.FerrariGeo.bearingDeg(

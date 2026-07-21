@@ -3154,25 +3154,78 @@ function showToast(msg, type='') {
 
 /* ══ ABRIR MODO DIOS (LAYER) ══ */
 function toggleGodLayer() {
-  if (!_sess) return; // Solo si estamos logueados
-  
+  if (!_sess) {
+    showToast('Inicia sesión primero para abrir el modo arquitecto.', 'error');
+    return;
+  }
+
   const layer = document.getElementById('god-layer');
   const frame = document.getElementById('god-frame');
-  
+  if (!layer || !frame) return;
+
   if (layer.classList.contains('visible')) {
     layer.classList.remove('visible');
-    frame.src = ''; // Descargar para ahorrar memoria
+    frame.src = '';
   } else {
-    // Guardar credenciales actuales por si acaso
     localStorage.setItem('ferrari_github_token',  _sess.token);
     localStorage.setItem('ferrari_github_owner',  CFG.GITHUB_OWNER);
     localStorage.setItem('ferrari_github_repo',   CFG.GITHUB_REPO);
     localStorage.setItem('ferrari_github_branch', CFG.BRANCH);
-    
-    frame.src = 'index.html?mode=god';
+
+    // En tablet: forzar tex mid/low vía query para que el iframe no se quede sin WebGL
+    const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 1);
+    const texHint = isTouch ? '&tex=4096' : '';
+    frame.src = 'index.html?mode=god' + texHint;
     layer.classList.add('visible');
+    const btn = document.getElementById('btn-god-link');
+    if (btn) btn.classList.add('visible');
   }
 }
+
+/** Gesto tablet: 2 dedos en la franja inferior (~22%) durante 3s → modo arquitecto */
+(function _bindArchitectTwoFingerHold() {
+  let holdTimer = null;
+  let holding = false;
+
+  function clearHold() {
+    holding = false;
+    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+  }
+
+  function bottomZone(touch) {
+    const h = window.innerHeight || 800;
+    return touch.clientY >= h * 0.78;
+  }
+
+  document.addEventListener('touchstart', function(e) {
+    if (!_sess) return;
+    if (!e.touches || e.touches.length !== 2) { clearHold(); return; }
+    if (!bottomZone(e.touches[0]) || !bottomZone(e.touches[1])) { clearHold(); return; }
+    holding = true;
+    holdTimer = setTimeout(function() {
+      if (!holding || !_sess) return;
+      clearHold();
+      try {
+        if (navigator.vibrate) navigator.vibrate(40);
+      } catch (err) {}
+      showToast('Modo arquitecto', 'success');
+      const layer = document.getElementById('god-layer');
+      if (layer && !layer.classList.contains('visible')) toggleGodLayer();
+      else if (layer && layer.classList.contains('visible')) {
+        /* ya abierto */
+      } else {
+        toggleGodLayer();
+      }
+    }, 3000);
+  }, { passive: true });
+
+  document.addEventListener('touchend', clearHold, { passive: true });
+  document.addEventListener('touchcancel', clearHold, { passive: true });
+  document.addEventListener('touchmove', function(e) {
+    if (!holding || !e.touches || e.touches.length !== 2) { clearHold(); return; }
+    if (!bottomZone(e.touches[0]) || !bottomZone(e.touches[1])) clearHold();
+  }, { passive: true });
+})();
 
 // Escuchar CTRL+ALT+A
 document.addEventListener('keydown', e => {
@@ -3193,7 +3246,6 @@ document.addEventListener('keydown', e => {
 function doLogout() {
   _sess=null; _lotes=[]; _cid=null; _sha=null; _godActive=false;
 
-  // Limpiar token de GitHub del localStorage al cerrar sesión
   localStorage.removeItem('ferrari_github_token');
   localStorage.removeItem('ferrari_github_owner');
   localStorage.removeItem('ferrari_github_repo');
@@ -3204,12 +3256,22 @@ function doLogout() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  document.getElementById('god-toggle').classList.remove('active');
-  document.getElementById('god-check').textContent='☆';
-  document.getElementById('god-pass-group').classList.remove('visible');
-  document.getElementById('btn-god-link').classList.remove('visible');
-  document.getElementById('ed-form').style.display='none';
-  document.getElementById('ed-placeholder').style.display='';
+  const godToggle = document.getElementById('god-toggle');
+  if (godToggle) godToggle.classList.remove('active');
+  const godCheck = document.getElementById('god-check');
+  if (godCheck) godCheck.textContent='☆';
+  const godPass = document.getElementById('god-pass-group');
+  if (godPass) godPass.classList.remove('visible');
+  const godLink = document.getElementById('btn-god-link');
+  if (godLink) godLink.classList.remove('visible');
+  const edForm = document.getElementById('ed-form');
+  if (edForm) edForm.style.display='none';
+  const edPh = document.getElementById('ed-placeholder');
+  if (edPh) edPh.style.display='';
+  const layer = document.getElementById('god-layer');
+  const frame = document.getElementById('god-frame');
+  if (layer) layer.classList.remove('visible');
+  if (frame) frame.src = '';
 }
 
 /* ══ ENTER KEY ══ */

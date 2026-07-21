@@ -1,19 +1,19 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="description" content="Ferrari360 — Motor de visualización panorámica 360° con herramientas de dibujo para loteo inmobiliario">
-  <title>KPK V1 Premium — Tour 360° + IA</title>
+  <title>Ferrari360 — Loteo Panorámico</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Cormorant+Garamond:wght@500;600;700&family=Josefin+Sans:wght@400;500;600&family=Montserrat:wght@500;600;700&family=Outfit:wght@400;500;600&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="pannellum.css?v=7">
-  <link rel="stylesheet" href="css/ferrari.css?v=prem1">
+  <link rel="stylesheet" href="css/ferrari.css?v=39">
   <!-- Pills dock/CTA glass (vence a ferrari). Clásico: css/kbd-buttons-classic.css al final. -->
   <link rel="stylesheet" href="css/kbd-buttons-glass.css?v=2">
   <link rel="stylesheet" href="css/f-gallery.css?v=1">
-  <link rel="stylesheet" href="css/f-geo.css?v=9">
+  <link rel="stylesheet" href="css/f-geo.css?v=10">
   <link rel="stylesheet" href="css/f-tourism.css?v=9">
   <!-- Copiloto IA de Ventas -->
   <link rel="stylesheet" href="ia/f-copilot.css?v=17">
@@ -44,11 +44,6 @@
     })();
   </script>
 
-
-  <script>
-    window.KPK_PLAN = 'premium';
-    document.documentElement.setAttribute('data-kpk-plan', 'premium');
-  </script>
 </head>
 <body>
 
@@ -503,7 +498,7 @@
   <!-- Ferrari Core: State → DOMCache → Camera → RAF → Init -->
   <script src="js/core/f-math-scale.js?v=12"></script>
   <script src="js/core/f-state.js?v=12"></script>
-  <script src="js/core/f-geo.js?v=20"></script>
+  <script src="js/core/f-geo.js?v=21"></script>
   <script src="js/core/f-places.js?v=13"></script>
   <script src="js/core/f-dom-cache.js?v=12"></script>
   <script src="js/core/f-camera.js?v=17"></script>
@@ -527,7 +522,7 @@
   <script src="js/ui/f-lote-panel.js?v=15"></script>
   <script src="js/ui/f-gallery.js?v=12"></script>
   <script src="js/ui/f-compass.js?v=17"></script>
-  <script src="js/ui/f-geo-editor.js?v=21"></script>
+  <script src="js/ui/f-geo-editor.js?v=22"></script>
   <script src="js/ui/f-tourism.js?v=14"></script>
 
   <!-- Ferrari Tools -->
@@ -541,17 +536,16 @@
   <script src="js/tools/f-kmz-calco.js?v=2"></script>
 
   <!-- Ferrari Device: detección de capacidad (debe ir antes de f-init) -->
-  <script src="js/core/f-device.js?v=1"></script>
+  <script src="js/core/f-device.js?v=4"></script>
 
-  <script src="js/core/f-plan.js?v=1"></script>
   <!-- Copiloto IA de Ventas -->
-  <script src="ia/f-copilot.js?v=prem1"></script>
+  <script src="ia/f-copilot.js?v=92"></script>
 
   <!-- Widget Meteorológico (Open-Meteo · sin API key) -->
   <script src="js/ui/f-weather.js?v=3"></script>
 
   <!-- Ferrari Init: último, arranca todo -->
-  <script src="js/core/f-init.js?v=19"></script>
+  <script src="js/core/f-init.js?v=22"></script>
 
 </body>
 </html>

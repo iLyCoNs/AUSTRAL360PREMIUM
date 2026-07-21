@@ -428,26 +428,6 @@
   font-size: 12px; color: rgba(0,0,0,0.5);
 }
 .fge-metric strong { color: #007AFF; font-size: 13px; }
-.fge-google-route {
-  margin-top: 4px;
-  padding: 12px;
-  border-radius: 14px;
-  background: rgba(52, 168, 83, 0.07);
-  border: 1px solid rgba(52, 168, 83, 0.18);
-}
-.fge-google-route .fge-btn {
-  flex: 1;
-  min-width: 120px;
-  padding: 9px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(0,0,0,0.08);
-  background: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  color: #1a1a1a;
-}
-.fge-google-route .fge-btn:hover { border-color: rgba(52,168,83,0.45); color: #188038; }
 .fge-check { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: rgba(0,0,0,0.55); }
 .fge-links { display: flex; flex-direction: column; gap: 6px; }
 .fge-ext {
