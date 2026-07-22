@@ -93,9 +93,9 @@
       _createViewer(source);
     }).catch(function(err) {
       console.error('[Ferrari/Init] Error preparando panorama:', err);
-      if (_viewerBootTries < 3 && window.FerrariDevice && window.FerrariDevice.stepDown) {
+      if (_viewerBootTries < 4 && window.FerrariDevice && window.FerrariDevice.stepDown) {
         var next = window.FerrariDevice.stepDown();
-        console.warn('[Ferrari/Init] Reintento con maxWidth', next.maxWidth);
+        console.warn('[Ferrari/Init] Reintento con', next.panoramaUrl || next.maxWidth);
         _bootViewer(next.maxWidth);
         return;
       }
@@ -109,167 +109,54 @@
   }
 
   /**
-   * Prepara la fuente del panorama: detecta el dispositivo, y si es necesario
-   * escala la imagen a una resolución soportable antes de pasarla a Pannellum.
-   * @returns {Promise<HTMLCanvasElement|string>} canvas (dynamic) o URL string
+   * Una sola foto (loteo360.jpg). Si hace falta, downscale en runtime
+   * según GPU / tier (createImageBitmap + canvas). mid/high → full si cabe.
+   * @returns {Promise<string>} URL (archivo o blob:)
    */
   function _preparePanorama(forcedMaxWidth) {
     var info = window.FerrariDevice.detect();
-    var tier = info.tier;
-    var maxWidth = forcedMaxWidth || info.maxWidth;
-    var maxTex = info.maxTextureSize || 0;
-    var origW = window.FerrariDevice.getOriginalWidth();
-    var origH = window.FerrariDevice.getOriginalHeight();
-    // Pannellum equirect: falla si max(width/2, height) > MAX_TEXTURE_SIZE
-    var gpuOkOriginal = maxTex > 0 && Math.max(origW / 2, origH) <= maxTex;
-
-    if (maxTex > 0 && !gpuOkOriginal) {
-      maxWidth = Math.min(maxWidth, maxTex * 2);
-      if (maxTex < 4096) maxWidth = Math.min(maxWidth, maxTex);
-    }
-
-    // High + GPU OK: cargar JPG original (como antes en Poco F5 → 60fps sin "Ajustando…")
-    // Solo reescalar si el tier/force lo pide o la GPU no aguanta el original.
-    var needsDl = !!forcedMaxWidth
-      ? (origW > maxWidth)
-      : (!gpuOkOriginal || (tier !== 'high' && origW > maxWidth));
-
-    if (!needsDl) {
-      maxWidth = origW;
-    }
-
     document.body.classList.remove('ferrari-device-high', 'ferrari-device-mid', 'ferrari-device-low');
-    document.body.classList.add('ferrari-device-' + tier);
+    document.body.classList.add('ferrari-device-' + info.tier);
     if (info.isTablet) document.body.classList.add('ferrari-device-tablet');
     if (info.isPhone) document.body.classList.add('ferrari-device-phone');
 
-    console.log('[Ferrari/Init] Device tier:', tier,
-      '| maxWidth:', maxWidth, '| downscale:', needsDl,
-      '| gpuOkOriginal:', gpuOkOriginal,
-      '| phone:', !!info.isPhone, '| tablet:', !!info.isTablet);
+    var targetW = window.FerrariDevice.getTargetWidth
+      ? window.FerrariDevice.getTargetWidth(forcedMaxWidth)
+      : (forcedMaxWidth || 4096);
 
-    if (!needsDl) {
-      return Promise.resolve('loteo360.jpg');
-    }
+    console.log('[Ferrari/Init] Device tier:', info.tier,
+      '| targetW:', targetW,
+      '| phone:', !!info.isPhone, '| tablet:', !!info.isTablet,
+      '| MAX_TEXTURE_SIZE:', info.maxTextureSize);
 
-    _showLoadingMessage('Ajustando resolución 360° (' + maxWidth + 'px)…');
-
-    // Timeout: si el resize cuelga, stepDown y reintenta
-    var loadTimeoutMs = (info.isPhone || info.isTablet) ? 12000 : 25000;
-    return _withTimeout(_loadAndScaleImage('loteo360.jpg', maxWidth), loadTimeoutMs,
-      'Timeout ajustando resolución (' + maxWidth + 'px)'
-    ).then(function(canvas) {
+    var needsHint = window.FerrariDevice.needsDownscale && window.FerrariDevice.needsDownscale();
+    if (needsHint || (forcedMaxWidth && forcedMaxWidth < 8000)) {
+      _showLoadingMessage('Ajustando resolución 360°…');
+    } else {
       _hideLoadingMessage();
-      return canvas;
-    });
-  }
-
-  function _withTimeout(promise, ms, label) {
-    return new Promise(function(resolve, reject) {
-      var done = false;
-      var t = setTimeout(function() {
-        if (done) return;
-        done = true;
-        reject(new Error(label || ('Timeout ' + ms + 'ms')));
-      }, ms);
-      promise.then(function(v) {
-        if (done) return;
-        done = true;
-        clearTimeout(t);
-        resolve(v);
-      }, function(err) {
-        if (done) return;
-        done = true;
-        clearTimeout(t);
-        reject(err);
-      });
-    });
-  }
-
-  /**
-   * Carga la imagen equirectangular y la escala al ancho máximo indicado
-   * usando createImageBitmap (con resize) o fallback Image + canvas 2D.
-   * @param {string} url
-   * @param {number} maxWidth
-   * @returns {Promise<HTMLCanvasElement>}
-   */
-  function _loadAndScaleImage(url, maxWidth) {
-    // Intentar createImageBitmap + fetch (decodifica + redimensiona en un paso,
-    // sin el buffer intermedio de 288MB de la imagen original)
-    if (window.createImageBitmap && window.fetch) {
-      return _loadAndScaleWithBitmap(url, maxWidth);
     }
-    // Fallback: Image + canvas 2D
-    return _fallbackLoadAndScale(url, maxWidth);
-  }
 
-  /**
-   * Carga y escala usando createImageBitmap (Chrome 76+, Firefox 98+, Safari 15.4+).
-   * Decodifica directamente al tamaño destino, ahorrando memoria.
-   */
-  function _loadAndScaleWithBitmap(url, maxWidth) {
-    return fetch(url).then(function(r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.blob();
-    }).then(function(blob) {
-      // createImageBitmap con resize puede fallar si el navegador no lo soporta.
-      // En móvil, 'medium' reduce el riesgo de cuelgue al bajar de ~12K a 4K.
-      var quality = (document.body.classList.contains('ferrari-device-phone') ||
-        document.body.classList.contains('ferrari-device-tablet')) ? 'medium' : 'high';
-      return createImageBitmap(blob, {
-        resizeWidth: maxWidth,
-        resizeQuality: quality
-      }).then(function(bitmap) {
-        var canvas = document.createElement('canvas');
-        canvas.width  = bitmap.width;
-        canvas.height = bitmap.height;
-        var ctx = canvas.getContext('2d');
-        ctx.drawImage(bitmap, 0, 0);
-        bitmap.close();
-        console.log('[Ferrari/Init] Imagen escalada vía createImageBitmap:',
-          maxWidth, '→', canvas.width + 'x' + canvas.height);
-        return canvas;
-      });
-    }).catch(function(err) {
-      // Fallback universal: Image + canvas 2D (funciona en todos los navegadores)
-      console.warn('[Ferrari/Init] createImageBitmap falló, usando fallback Image:', err);
-      return _fallbackLoadAndScale(url, maxWidth);
-    });
-  }
+    var resolver = window.FerrariDevice.resolvePanoramaSource
+      ? window.FerrariDevice.resolvePanoramaSource(forcedMaxWidth)
+      : Promise.resolve({ url: 'loteo360.jpg', width: targetW, resized: false, tier: info.tier });
 
-  /** Fallback para navegadores sin createImageBitmap.resize */
-  function _fallbackLoadAndScale(url, maxWidth) {
-    return new Promise(function(resolve, reject) {
-      var img = new Image();
-      img.onload = function() {
-        var scale = maxWidth / img.width;
-        var w = Math.round(img.width * scale);
-        var h = Math.round(img.height * scale);
-        var canvas = document.createElement('canvas');
-        canvas.width  = w;
-        canvas.height = h;
-        var ctx = canvas.getContext('2d');
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, 0, 0, w, h);
-        console.log('[Ferrari/Init] Imagen escalada (fallback):',
-          img.width + 'x' + img.height, '→', w + 'x' + h,
-          '(', Math.round(scale * 100), '%)');
-        resolve(canvas);
-      };
-      img.onerror = function() {
-        reject(new Error('No se pudo cargar la imagen: ' + url));
-      };
-      img.src = url;
+    return resolver.then(function(src) {
+      console.log('[Ferrari/Init] Panorama listo:', src.url.slice(0, 48),
+        '|', src.width + 'px', '| resized:', !!src.resized);
+      _hideLoadingMessage();
+      return src.url;
     });
   }
 
   /**
    * Crea el viewer de Pannellum con la fuente preparada.
-   * @param {HTMLCanvasElement|string} source
+   * @param {string} source URL del JPG (archivo o blob:)
    */
   function _createViewer(source) {
+    var panoUrl = typeof source === 'string' ? source : 'loteo360.jpg';
     var config = {
       type:        'equirectangular',
+      panorama:    panoUrl,
       autoLoad:    true,
       showZoomCtrl:      true,
       showFullscreenCtrl: true,
@@ -286,13 +173,12 @@
         bylineLabel:  'por %s'
       }
     };
-
-    if (typeof source === 'string') {
-      config.panorama = source;
-    } else {
-      config.dynamic  = true;
-      config.panorama = source;
+    if (window.FerrariIdleCam && window.FerrariIdleCam.applyViewerConfig) {
+      window.FerrariIdleCam.applyViewerConfig(config);
     }
+
+    // Quitar overlay residual que tapa la textura WebGL
+    _hideLoadingMessage(true);
 
     var viewer = pannellum.viewer('pannellum-viewer', config);
 
@@ -310,18 +196,20 @@
 
     // ─── ESPERAR CARGA DE PANNELLUM ────────────────────────────────
     viewer.on('load', function() {
-      console.log('[Ferrari/Init] ✓ Pannellum cargado. Iniciando sistemas...');
+      console.log('[Ferrari/Init] ✓ Pannellum cargado. Iniciando sistemas...', panoUrl);
+      _hideLoadingMessage(true);
       _onViewerReady();
     });
 
     viewer.on('error', function(e) {
       console.error('[Ferrari/Init] Error de Pannellum:', e);
+      _hideLoadingMessage(true);
       var container = document.getElementById('pannellum-viewer');
       if (e && (e.type === 'webgl size error' || (typeof e === 'string' && /webgl|texture/i.test(e)))) {
-        if (_viewerBootTries < 3 && window.FerrariDevice && window.FerrariDevice.stepDown) {
+        if (_viewerBootTries < 4 && window.FerrariDevice && window.FerrariDevice.stepDown) {
           try { viewer.destroy(); } catch (err) {}
           var next = window.FerrariDevice.stepDown();
-          console.warn('[Ferrari/Init] WebGL size error → reintento', next.maxWidth);
+          console.warn('[Ferrari/Init] WebGL size error → reintento', next.panoramaUrl || next.maxWidth);
           if (container) container.innerHTML = '';
           _bootViewer(next.maxWidth);
           return;
@@ -373,18 +261,23 @@
     if (!el) {
       el = document.createElement('div');
       el.id = 'kpk-init-loading';
-      el.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;' +
-        'justify-content:center;color:#fff;background:#1a1a2e;font-family:sans-serif;' +
-        'font-size:14px;z-index:10;text-align:center;padding:20px';
       container.appendChild(el);
     }
+    // display en estilo (no solo hidden): en Android el inline flex gana a [hidden]
+    el.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;' +
+      'justify-content:center;color:#fff;background:#1a1a2e;font-family:sans-serif;' +
+      'font-size:14px;z-index:10;text-align:center;padding:20px;pointer-events:none';
     el.textContent = msg || 'Preparando imagen 360°…';
-    el.hidden = false;
+    el.removeAttribute('hidden');
   }
 
-  function _hideLoadingMessage() {
+  /** @param {boolean} [remove] quitar del DOM para no tapar el WebGL */
+  function _hideLoadingMessage(remove) {
     var el = document.getElementById('kpk-init-loading');
-    if (el) el.hidden = true;
+    if (!el) return;
+    el.style.display = 'none';
+    el.setAttribute('hidden', '');
+    if (remove && el.parentNode) el.parentNode.removeChild(el);
   }
 
   function _escHtml(s) {
@@ -447,9 +340,23 @@
     // 6. Verificación de consola según spec
     _verifyProjection();
 
-    // 7. Cinematic intro: paneo norte → izquierda → Lote 13
-    _tryCinematicIntro();
-    document.addEventListener('ferrari:lotes-changed', _tryCinematicIntro, { once: true });
+    // 7. Cinematic intro: paneo norte → izquierda → Lote 13 → idle
+    //    Si el intro no arranca (ya jugó / sin lote 13), idle diferido.
+    var introStarted = _tryCinematicIntro();
+    if (!introStarted && window.FerrariIdleCam) {
+      window.FerrariIdleCam.scheduleStart(1500);
+    }
+    document.addEventListener('ferrari:lotes-changed', function () {
+      if (_tryCinematicIntro()) return;
+      if (window.FerrariIdleCam && !window.FerrariIdleCam.isStarted()) {
+        window.FerrariIdleCam.scheduleStart(800);
+      }
+    }, { once: true });
+
+    // 8. Tonos guardados (viewer + editor)
+    if (window.FerrariTone && typeof window.FerrariTone.applySaved === 'function') {
+      window.FerrariTone.applySaved();
+    }
 
     console.log('[Ferrari/Init] ✓ Motor Ferrari360 activo — SVG nadir-clamped');
   }
@@ -481,15 +388,17 @@
     } catch (e2) {}
   }
 
-  /** Paneo cinemático de bienvenida: norte → izquierda → Lote 13 */
+  /** Paneo cinemático de bienvenida: norte → izquierda → Lote 13 → idle autorotate
+   *  @returns {boolean} true si el intro arrancó ahora
+   */
   function _tryCinematicIntro() {
-    if (sessionStorage.getItem('ferrari_cinematic_played')) return;
+    if (sessionStorage.getItem('ferrari_cinematic_played')) return false;
     const viewer = window.Ferrari && window.Ferrari.viewer;
     const lines = window.allDrawnLines || [];
-    if (!viewer || !viewer.lookAt) return;
+    if (!viewer || !viewer.lookAt) return false;
 
     const lote13 = lines.find(function(l) { return l.titulo === '13' && l._pinCentroid; });
-    if (!lote13) return;
+    if (!lote13) return false;
     sessionStorage.setItem('ferrari_cinematic_played', '1');
 
     var northOff = (window.FerrariGeo && window.FerrariGeo.northOffset) || 0;
@@ -500,16 +409,26 @@
     var midPitch  = lotePitch * 0.5;
     var DUR = 1200;
 
+    if (window.FerrariIdleCam) {
+      // Idle autorotate mira fijo a P −80° (no al pitch del lote)
+      window.FerrariIdleCam.setTerrainPitch(-80);
+    }
+
     viewer.stopMovement();
     viewer.lookAt(0, northYaw, 90, 0);
 
     setTimeout(function() {
       viewer.lookAt(midPitch, midYaw, 90, DUR, function() {
         setTimeout(function() {
-          viewer.lookAt(lotePitch, loteYaw, 90, DUR);
+          viewer.lookAt(lotePitch, loteYaw, 90, DUR, function() {
+            if (window.FerrariIdleCam) {
+              window.FerrariIdleCam.scheduleStart(900);
+            }
+          });
         }, 250);
       });
     }, 400);
+    return true;
   }
 
   /**

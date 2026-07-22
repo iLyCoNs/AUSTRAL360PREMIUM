@@ -19,7 +19,17 @@
   let _elUnion    = null;
   let _elShared   = null;
   let _elUnshared = null;
+  let _elHover    = null;
   let _elHandles  = null;
+  let _hoveredLoteId = null;
+  let _lastHoverD = '';
+  let _lastPointerG = null;
+  let _hoverBound = false;
+  let _hoverRaf = 0;
+  let _hoverMx = 0;
+  let _hoverMy = 0;
+  const _hoverCam = { x: 0, y: 0, z: 0 };
+  const _hoverScreen = []; // reuse [[x,y], ...]
   // Scratch para conteo de segmentos sin regex por frame.
   const _segScratch = { seg: 0 };
   // Últimos valores aplicados (evita re-escribir atributos idénticos).
@@ -244,6 +254,7 @@
       _elUnshared = document.getElementById('unshared-edges-path');
       if (!_elShared || !_elUnshared) return;
     }
+    if (!_elHover) _elHover = document.getElementById('hover-lote-edges-path');
 
     const currentVersion = window.DOMCache ? window.DOMCache.version : 0;
     if (currentVersion !== _edgeCacheVersion) {
@@ -297,6 +308,197 @@
       _lastBorderDash = dashStr;
       _elShared.setAttribute('stroke-dasharray', dashStr);
     }
+
+    _updateHoverEdges(proj, scaleFactor);
+  }
+
+  function _updateHoverEdges(proj, scaleFactor) {
+    if (!_elHover) return;
+    const FCam = window.FerrariCamera;
+    let dHover = 'M -9999 -9999';
+
+    if (_hoveredLoteId) {
+      const lines = window.allDrawnLines;
+      let line = null;
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].id === _hoveredLoteId) { line = lines[i]; break; }
+      }
+      if (line && line.puntos && line.puntos.length >= 2) {
+        const parts = [];
+        const n = line.puntos.length;
+        const closed = (
+          line.tipo === 'lote-libre' ||
+          line.tipo === 'lote-organico' ||
+          line.tipo === 'franja-grupo' ||
+          line.tipo === 'kprano-capsule'
+        );
+        const edgeCount = closed ? n : n - 1;
+        for (let j = 0; j < edgeCount; j++) {
+          const p1 = line.puntos[j];
+          const p2 = line.puntos[(j + 1) % n];
+          const cam1 = FCam.getCamFastInto(p1, _camA);
+          const cam2 = FCam.getCamFastInto(p2, _camB);
+          if (cam1.z <= 0.0001 || cam2.z <= 0.0001) continue;
+          const pt1 = FCam.camToPixel(cam1, proj);
+          const pt2 = FCam.camToPixel(cam2, proj);
+          if (!pt1.visible || !pt2.visible) continue;
+          parts.push('M ' + pt1.px.toFixed(2) + ' ' + pt1.py.toFixed(2) + ' L ' + pt2.px.toFixed(2) + ' ' + pt2.py.toFixed(2));
+        }
+        if (parts.length) dHover = parts.join(' ');
+      }
+    }
+
+    if (dHover !== _lastHoverD) {
+      _lastHoverD = dHover;
+      _elHover.setAttribute('d', dHover);
+    }
+
+    const hoverW = Math.max(1.2, (scaleFactor || 1) * 2.4);
+    _elHover.style.strokeWidth = hoverW + 'px';
+    _elHover.classList.toggle('is-active', !!_hoveredLoteId && dHover !== 'M -9999 -9999');
+  }
+
+  function setHoveredLote(id) {
+    const next = id || null;
+    if (_hoveredLoteId === next) {
+      // Aun si es el mismo id, refrescar edges al mover cámara
+      return;
+    }
+    _hoveredLoteId = next;
+
+    // Clase visual en el <g> del lote
+    if (_lastPointerG) {
+      _lastPointerG.classList.remove('is-pointer');
+      _lastPointerG = null;
+    }
+    if (next && window.DOMCache && window.DOMCache.paths) {
+      const entry = window.DOMCache.paths.get(next);
+      if (entry && entry.gNode) {
+        entry.gNode.classList.add('is-pointer');
+        _lastPointerG = entry.gNode;
+      }
+    }
+
+    try {
+      if (!_elHover) _elHover = document.getElementById('hover-lote-edges-path');
+      const FCam = window.FerrariCamera;
+      if (FCam && FCam.getProjectionParams) {
+        const proj = FCam.getProjectionParams();
+        const baseF = 0.5 * proj.w;
+        const scaleFactor = proj.f / baseF;
+        _updateHoverEdges(proj, scaleFactor);
+      }
+    } catch (e) { /* ok */ }
+  }
+
+  function _pointInPoly(x, y, pts) {
+    let inside = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const xi = pts[i][0], yi = pts[i][1];
+      const xj = pts[j][0], yj = pts[j][1];
+      const intersect = ((yi > y) !== (yj > y)) &&
+        (x < (xj - xi) * (y - yi) / ((yj - yi) || 1e-9) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+
+  function _clientToSvg(clientX, clientY) {
+    const svg = document.getElementById('loteo-svg');
+    if (!svg) return null;
+    try {
+      const pt = svg.createSVGPoint();
+      pt.x = clientX;
+      pt.y = clientY;
+      const ctm = svg.getScreenCTM();
+      if (!ctm) return null;
+      const local = pt.matrixTransform(ctm.inverse());
+      return { x: local.x, y: local.y };
+    } catch (e) {
+      const rect = svg.getBoundingClientRect();
+      const vb = svg.viewBox && svg.viewBox.baseVal;
+      if (!vb || !rect.width || !rect.height) {
+        return { x: clientX - rect.left, y: clientY - rect.top };
+      }
+      return {
+        x: (clientX - rect.left) * (vb.width / rect.width),
+        y: (clientY - rect.top) * (vb.height / rect.height)
+      };
+    }
+  }
+
+  function _isLoteHoverable(line) {
+    if (!line || !line.puntos || line.puntos.length < 3) return false;
+    const t = line.tipo;
+    return t === 'lote-libre' || t === 'lote-organico' || t === 'franja-grupo' || t === 'kprano-capsule';
+  }
+
+  function _hitTestLoteAt(clientX, clientY) {
+    if (document.body.classList.contains('edit-tool-active')) return null;
+    const pan = document.getElementById('panorama-container');
+    if (pan && pan.classList.contains('drawing-active')) return null;
+
+    const local = _clientToSvg(clientX, clientY);
+    if (!local) return null;
+
+    const FCam = window.FerrariCamera;
+    if (!FCam || !FCam.getProjectionParams) return null;
+    const proj = FCam.getProjectionParams();
+    const lines = window.allDrawnLines;
+    if (!lines || !lines.length) return null;
+
+    // Recorrer de atrás hacia adelante (último dibujado = encima)
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i];
+      if (!_isLoteHoverable(line)) continue;
+
+      _hoverScreen.length = 0;
+      let visible = 0;
+      for (let k = 0; k < line.puntos.length; k++) {
+        const cam = FCam.getCamFastInto(line.puntos[k], _hoverCam);
+        if (cam.z <= 0.0001) continue;
+        const pt = FCam.camToPixel(cam, proj);
+        if (!pt.visible) continue;
+        _hoverScreen.push([pt.px, pt.py]);
+        visible++;
+      }
+      if (visible < 3) continue;
+      if (_pointInPoly(local.x, local.y, _hoverScreen)) {
+        return line.id;
+      }
+    }
+    return null;
+  }
+
+  function _onHoverPointerMove(e) {
+    _hoverMx = e.clientX;
+    _hoverMy = e.clientY;
+    if (_hoverRaf) return;
+    _hoverRaf = requestAnimationFrame(() => {
+      _hoverRaf = 0;
+      const id = _hitTestLoteAt(_hoverMx, _hoverMy);
+      setHoveredLote(id);
+    });
+  }
+
+  function _onHoverPointerLeave() {
+    setHoveredLote(null);
+  }
+
+  function bindHoverTracking() {
+    if (_hoverBound) return;
+    const host = document.getElementById('panorama-container');
+    if (!host) return;
+    _hoverBound = true;
+    host.addEventListener('pointermove', _onHoverPointerMove, { passive: true });
+    host.addEventListener('pointerleave', _onHoverPointerLeave, { passive: true });
+  }
+
+  // Auto-bind cuando el DOM esté listo
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindHoverTracking);
+  } else {
+    bindHoverTracking();
   }
 
   /**
@@ -658,7 +860,9 @@
   // ─── API PÚBLICA ────────────────────────────────────────────────────
   window.FerrariSVGPaths = { 
     updateSVGPaths,
-    calculateStreetPolygon: _createStreetPolygon
+    calculateStreetPolygon: _createStreetPolygon,
+    setHoveredLote,
+    bindHoverTracking
   };
 
   console.log('[Ferrari/SVGPaths] ✓ Módulo inicializado');

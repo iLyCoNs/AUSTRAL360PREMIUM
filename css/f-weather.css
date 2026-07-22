@@ -1,10 +1,16 @@
 /**
  * f-weather.css — Widget clima · glass armónico + reloj vivo
+ *
+ * Posición: esquina superior izquierda, a la DERECHA de los controles
+ * Pannellum (+/− zoom y fullscreen), sin solaparlos.
+ *
+ * Colapsado = círculo “+” (reglas con #id.clase para ganar a width:168px del contenedor).
  */
 #kpk-weather-widget {
   position: fixed;
+  /* Desktop: zoom Pannellum ~26px @ left≈4 → hueco a la derecha */
   top: 14px;
-  left: 74px;
+  left: 52px;
   right: auto;
   z-index: 99990;
   width: 168px;
@@ -21,8 +27,9 @@
   font-family: 'Outfit', -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
   color: #fff;
   user-select: none;
-  transition: box-shadow 0.25s ease, opacity 0.2s ease;
+  transition: box-shadow 0.25s ease, opacity 0.2s ease, width 0.2s ease, height 0.2s ease, border-radius 0.2s ease;
   will-change: transform;
+  box-sizing: border-box;
 }
 
 #kpk-weather-widget:hover {
@@ -42,38 +49,93 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 .kpk-weather__handle:active { cursor: grabbing; }
+.kpk-weather__handle[hidden] { display: none !important; }
 
-.kpk-weather__grip {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  opacity: 0.35;
-}
-.kpk-weather__grip span {
-  display: block;
-  width: 16px;
-  height: 1.5px;
-  border-radius: 2px;
-  background: #fff;
+.kpk-weather__drag-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .kpk-weather__collapse {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   border: none;
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.88);
   cursor: pointer;
   padding: 0;
-  transition: background 0.15s ease, color 0.15s ease;
+  margin: 0;
+  flex-shrink: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 .kpk-weather__collapse:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.28);
   color: #fff;
+}
+.kpk-weather__collapse svg {
+  width: 12px;
+  height: 12px;
+  display: block;
+}
+
+/* Colapsado = solo círculo “+” (especificidad > #kpk-weather-widget) */
+#kpk-weather-widget.kpk-weather--collapsed {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  max-width: 36px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  overflow: hidden;
+}
+#kpk-weather-widget.kpk-weather--collapsed .kpk-weather__body,
+#kpk-weather-widget.kpk-weather--collapsed .kpk-weather__handle {
+  display: none !important;
+}
+#kpk-weather-widget.kpk-weather--collapsed .kpk-weather__collapse {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  background: transparent;
+}
+#kpk-weather-widget.kpk-weather--collapsed .kpk-weather__collapse:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+#kpk-weather-widget.kpk-weather--collapsed .kpk-weather__collapse svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Expandido: botón − arriba a la derecha */
+#kpk-weather-widget:not(.kpk-weather--collapsed) {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: 0;
+  max-width: none;
+}
+#kpk-weather-widget:not(.kpk-weather--collapsed) .kpk-weather__collapse {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+}
+#kpk-weather-widget:not(.kpk-weather--collapsed) .kpk-weather__handle {
+  padding-right: 34px;
 }
 
 .kpk-weather__body {
@@ -188,25 +250,28 @@
   font-variant-numeric: tabular-nums;
 }
 
-.kpk-weather--collapsed {
-  width: 42px;
-}
-.kpk-weather--collapsed .kpk-weather__grip {
-  display: none;
-}
-
 .kpk-fs-adopted#kpk-weather-widget {
   position: absolute !important;
 }
 
 @media (max-width: 640px) {
-  #kpk-weather-widget {
-    top: 70px;
-    left: 10px;
+  /* Misma altura que .pnlm-controls-container (ferrari.css), a la derecha del zoom */
+  #kpk-weather-widget:not(.kpk-weather--collapsed),
+  #kpk-weather-widget.kpk-weather--collapsed {
+    top: 72px;
+    left: 48px;
+    transform: none !important;
+  }
+  #kpk-weather-widget:not(.kpk-weather--collapsed) {
     width: 132px;
     border-radius: 14px;
-    /* Sin scale(): tamaño real armónico y legible */
-    transform: none !important;
+  }
+  #kpk-weather-widget.kpk-weather--collapsed {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    max-width: 36px !important;
+    border-radius: 50% !important;
   }
   .kpk-weather__body {
     padding: 7px 8px 8px;
@@ -233,7 +298,7 @@
 }
 
 @media (min-width: 641px) and (max-width: 1100px) {
-  #kpk-weather-widget {
+  #kpk-weather-widget:not(.kpk-weather--collapsed) {
     width: 156px;
   }
 }
@@ -242,10 +307,19 @@
   from { opacity: 0; transform: translateY(-8px) scale(0.96); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
+@keyframes kpk-weather-in-circle {
+  from { opacity: 0; transform: scale(0.85); }
+  to   { opacity: 1; transform: scale(1); }
+}
 #kpk-weather-widget {
   animation: kpk-weather-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
+/* Evitar que el scale/translateY deforme el círculo en Windows */
+#kpk-weather-widget.kpk-weather--collapsed {
+  animation: kpk-weather-in-circle 0.35s ease both;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  #kpk-weather-widget { animation: none; }
+  #kpk-weather-widget,
+  #kpk-weather-widget.kpk-weather--collapsed { animation: none; }
 }

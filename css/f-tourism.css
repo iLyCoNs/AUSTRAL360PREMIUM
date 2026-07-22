@@ -118,11 +118,11 @@ body:not(.kpk-ai-panel-open) .kpk-tourism-widget {
   color: #fff;
 }
 
-/* ─── Media: altura FIJA (no aplastar el texto) ─────────────────────────────── */
+/* ─── Media: más alto (espacio liberado al quitar CTA de lote) ─────────────── */
 .kpk-tw-media {
   position: relative;
   flex: 0 0 auto;
-  max-height: 168px;
+  max-height: 220px;
   overflow: hidden;
   background: rgba(0, 0, 0, 0.28);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -162,7 +162,7 @@ body:not(.kpk-ai-panel-open) .kpk-tourism-widget {
 .kpk-tw-media-stage {
   position: relative;
   width: 100%;
-  height: 132px;
+  height: 178px;
   overflow: hidden;
 }
 
@@ -361,10 +361,10 @@ body.kpk-tourism-open .kpk-map-widget.is-open {
   }
 
   .kpk-tw-media {
-    max-height: 128px;
+    max-height: 168px;
   }
   .kpk-tw-media-stage {
-    height: 100px;
+    height: 136px;
   }
   .kpk-tw-body {
     min-height: 48px;
@@ -413,6 +413,6 @@ body.kpk-tourism-open .kpk-map-widget.is-open {
     max-height: min(48vh, 380px);
     bottom: max(88px, env(safe-area-inset-bottom, 0px) + 78px);
   }
-  .kpk-tw-media-stage { height: 92px; }
+  .kpk-tw-media-stage { height: 128px; }
   .kpk-tw-title { font-size: 13.5px; }
 }

@@ -44,6 +44,8 @@
     _label = document.getElementById('fc-bearing');
   }
 
+  let _pulseTimer = null;
+
   function refresh() {
     _ensure();
     const viewer = window.Ferrari && window.Ferrari.viewer;
@@ -66,7 +68,28 @@
     refresh();
   }
 
-  window.FerrariCompass = { refresh, start };
+  /** Destaca la brújula (y opcionalmente muestra un bearing objetivo) */
+  function pulse(bearingDeg) {
+    _ensure();
+    if (_label && bearingDeg != null && isFinite(Number(bearingDeg))) {
+      const b = ((Number(bearingDeg) % 360) + 360) % 360;
+      _label.textContent = `${Math.round(b)}°`;
+      _label.classList.add('is-target');
+    }
+    if (_root) {
+      _root.classList.remove('is-pulse');
+      void _root.offsetWidth;
+      _root.classList.add('is-pulse');
+    }
+    if (_pulseTimer) clearTimeout(_pulseTimer);
+    _pulseTimer = setTimeout(() => {
+      if (_root) _root.classList.remove('is-pulse');
+      if (_label) _label.classList.remove('is-target');
+      refresh();
+    }, 2800);
+  }
+
+  window.FerrariCompass = { refresh, start, pulse };
 
   console.log('[Ferrari/Compass] ✓ Módulo inicializado');
 

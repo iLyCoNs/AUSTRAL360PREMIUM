@@ -266,6 +266,67 @@ body.kpk-lote-fill-hover-only .lote-interactivo:hover .path-default {
   stroke-width: 1.2px; /* Más fino y elegante */
 }
 
+/* Glow futurista del perímetro al hover / pointer sobre un lote */
+.path-border-hover-fx {
+  fill: none;
+  stroke: #5CFFE7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.6px;
+  opacity: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 0 5px rgba(92, 255, 231, 0.95))
+          drop-shadow(0 0 14px rgba(0, 200, 255, 0.7));
+  stroke-dasharray: 12 7;
+  transition: opacity 0.12s ease;
+}
+.path-border-hover-fx.is-active {
+  opacity: 1;
+  animation: kpk-lote-neon-dash 0.95s linear infinite, kpk-lote-neon-pulse 1.4s ease-in-out infinite;
+}
+@keyframes kpk-lote-neon-dash {
+  to { stroke-dashoffset: -36; }
+}
+@keyframes kpk-lote-neon-pulse {
+  0%, 100% {
+    stroke: #5CFFE7;
+    filter: drop-shadow(0 0 3px rgba(92, 255, 231, 0.7))
+            drop-shadow(0 0 8px rgba(0, 200, 255, 0.4));
+  }
+  50% {
+    stroke: #B8FFF6;
+    filter: drop-shadow(0 0 6px rgba(92, 255, 231, 1))
+            drop-shadow(0 0 16px rgba(0, 229, 255, 0.75));
+  }
+}
+
+/* Relleno + trazo suave del polígono mientras el cursor está encima */
+.lote-interactivo.is-pointer .path-lote,
+.lote-interactivo.is-pointer .path-default,
+.lote-interactivo:hover .path-lote,
+.lote-interactivo:hover .path-default {
+  stroke: rgba(92, 255, 231, 0.55);
+  stroke-width: 1.1px;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .path-border-hover-fx.is-active {
+    animation: none;
+    stroke-dasharray: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .path-border-hover-fx {
+    filter: drop-shadow(0 0 3px rgba(92, 255, 231, 0.7));
+  }
+  .path-border-hover-fx.is-active {
+    animation: kpk-lote-neon-dash 1.2s linear infinite;
+  }
+}
+
 .path-costura {
   fill: none;
   stroke: var(--svg-lote);
@@ -1039,24 +1100,28 @@ body.kpk-lote-fill-hover-only .lote-interactivo:hover .path-default {
 @media (max-width: 768px) {
   :root { --panel-w: calc(100vw - 24px); }
 
-  /* El backdrop-filter se desactiva dinámicamente mediante las clases .ferrari-device-mid y .ferrari-device-low */
-
-  /* ── Sombras simplificadas ── */
+  /* Glass móvil: mismo lenguaje visual que el widget clima (no opacar el dock) */
   .kpk-panel {
     box-shadow: 0 2px 12px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.9);
   }
   .kpk-brand-dock__glass {
     box-shadow: 0 4px 12px rgba(15,23,42,0.12);
   }
+  .kpk-brand-dock.has-title-banner .kpk-brand-dock__glass {
+    box-shadow: none !important;
+  }
   .kpk-brand-dock.dock-style-obsidian .kpk-brand-dock__glass {
     box-shadow: 0 4px 14px rgba(0,0,0,0.25);
   }
+  .kpk-brand-dock.has-title-banner.dock-style-obsidian .kpk-brand-dock__glass {
+    box-shadow: none !important;
+  }
   .kbd-glass {
-    background: rgba(255, 255, 255, 0.10);
-    backdrop-filter: blur(32px) saturate(180%);
-    -webkit-backdrop-filter: blur(32px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    color: #ffffff;
+    background: rgba(255, 255, 255, 0.10) !important;
+    backdrop-filter: blur(28px) saturate(170%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(170%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
+    color: #ffffff !important;
   }
   .kbd-toggle {
     box-shadow:
@@ -1129,52 +1194,49 @@ body.kpk-lote-fill-hover-only .lote-interactivo:hover .path-default {
   }
 }
 
-/* ══ DEVICE TIER: mid/low (tablets mid-range, 4GB RAM, Samsung Tab S7 FE) ══ */
-/* Desactiva backdrop-filter (causa #1 de lag GPU) y simplifica compositing */
-
-.ferrari-device-mid *,
-.ferrari-device-low * {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
+/* ══ DEVICE TIER: mid/low ══
+   Antes: backdrop-filter:none + dock #1e2029 (opaco/oscuro) en tablet/móvil.
+   Eso rompía el glass del clima y los pills. La textura 360° ya se baja con
+   loteo360-4096/2048; el UI mantiene el mismo cristal que en desktop. */
 
 .ferrari-device-mid .smart-pin,
 .ferrari-device-low .smart-pin,
 .ferrari-device-mid .f-geo-pin,
-.ferrari-device-low .f-geo-pin {
+.ferrari-device-low .f-geo-pin,
+.ferrari-device-phone .smart-pin,
+.ferrari-device-tablet .smart-pin,
+.ferrari-device-phone .f-geo-pin,
+.ferrari-device-tablet .f-geo-pin {
   will-change: auto;
 }
 
-/* Sombras más simples en mid tier */
-.ferrari-device-mid .kpk-panel {
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.9);
-}
-.ferrari-device-mid .kbd-glass {
-  background: #1e2029;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+/* Glass del dock / clima / pills: mismo look que desktop (sin forzar oscuro) */
+.ferrari-device-mid .kbd-glass,
+.ferrari-device-low .kbd-glass,
+.ferrari-device-phone .kbd-glass,
+.ferrari-device-tablet .kbd-glass {
+  background: rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.32),
+    0 1px 0 rgba(255, 255, 255, 0.16) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.1) inset;
+  color: #ffffff;
 }
 
-/* Low tier: sombras aún más ligeras, sin text-shadow */
+.ferrari-device-mid .kpk-panel,
 .ferrari-device-low .kpk-panel {
-  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.9);
 }
-.ferrari-device-low .kbd-glass {
-  background: #1e2029;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-}
+
 .ferrari-device-low .kpk-brand-dock__name {
   text-shadow: none !important;
 }
 .ferrari-device-low .kpk-lote-panel.spectator-mode {
   background: #ffffff;
   box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-}
-
-/* Spectator mode: desactivar backdrop-filter en dispositivos mid/low (causa lag GPU) */
-.ferrari-device-mid .kpk-lote-panel.spectator-mode,
-.ferrari-device-low .kpk-lote-panel.spectator-mode {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
 }
 
 /* ──────────────────────────────────────────────
@@ -1748,7 +1810,74 @@ body.kpk-lote-fill-hover-only .lote-interactivo:hover .path-default {
   word-break: break-word;
   max-width: min(78vw, 620px);
   text-shadow: 0 1px 0 rgba(255,255,255,0.35);
-  -webkit-font-smoothing: antialiased;
+}
+
+/* Banner PNG transparente — reemplaza título en el dock */
+.kpk-brand-dock__banner-link {
+  position: relative;
+  z-index: 1;
+  display: block;
+  line-height: 0;
+  text-decoration: none;
+  color: inherit;
+  pointer-events: none;
+  border-radius: 4px;
+  outline: none;
+}
+.kpk-brand-dock__banner-link.is-linked {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.kpk-brand-dock__banner-link.is-linked:hover .kpk-brand-dock__banner,
+.kpk-brand-dock__banner-link.is-linked:focus-visible .kpk-brand-dock__banner {
+  opacity: 0.92;
+  filter: brightness(1.06);
+}
+.kpk-brand-dock__banner-link.is-linked:focus-visible {
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.55), 0 0 0 4px rgba(0,180,255,0.45);
+}
+.kpk-brand-dock__banner-link[hidden] { display: none !important; }
+
+.kpk-brand-dock__banner {
+  position: relative;
+  z-index: 1;
+  display: block;
+  /* Escala admin: --kpk-banner-scale (1 = 100%) */
+  height: calc(clamp(28px, 5.2vw, 44px) * var(--kpk-banner-scale, 1));
+  width: auto;
+  max-width: min(96vw, calc(720px * var(--kpk-banner-scale, 1)));
+  object-fit: contain;
+  object-position: center;
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 0.2s ease, filter 0.2s ease, height 0.2s ease;
+}
+.kpk-brand-dock__banner[hidden] { display: none !important; }
+
+.kpk-brand-dock.has-title-banner {
+  max-width: min(96vw, 900px);
+  width: max-content;
+}
+/* Banner = solo la foto (sin pila). !important: skins dock-style-* van después y si no, vuelven a pintar el glass */
+.kpk-brand-dock.has-title-banner .kpk-brand-dock__glass {
+  gap: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+.kpk-brand-dock.has-title-banner .kpk-brand-dock__glass::before,
+.kpk-brand-dock.has-title-banner .kpk-brand-dock__glass::after {
+  display: none !important;
+  content: none !important;
+}
+.kpk-brand-dock.has-title-banner .kpk-brand-dock__logo-wrap,
+.kpk-brand-dock.has-title-banner .kpk-brand-dock__text {
+  display: none !important;
 }
 
 .kpk-brand-dock__name[hidden] { display: none !important; }
@@ -2000,6 +2129,35 @@ body.kpk-lote-fill-hover-only .lote-interactivo:hover .path-default {
   display: none;
 }
 
+/* Banner PNG: anula CUALQUIER skin / solid móvil — solo la foto */
+.kpk-brand-dock.has-title-banner .kpk-brand-dock__glass,
+.kpk-brand-dock.has-title-banner.is-mobile-solid .kpk-brand-dock__glass,
+.kpk-brand-dock.has-title-banner.dock-style-crystal .kpk-brand-dock__glass,
+.kpk-brand-dock.has-title-banner.dock-style-obsidian .kpk-brand-dock__glass,
+.kpk-brand-dock.has-title-banner.dock-style-ivory .kpk-brand-dock__glass,
+.kpk-brand-dock.has-title-banner.dock-style-graphite .kpk-brand-dock__glass,
+.kpk-brand-dock.has-title-banner.dock-style-champagne .kpk-brand-dock__glass,
+.kpk-brand-dock.has-title-banner.dock-style-obsidian-gold .kpk-brand-dock__glass,
+.kpk-brand-dock.has-title-banner.dock-style-bordeaux .kpk-brand-dock__glass,
+.kpk-brand-dock.has-title-banner.dock-style-platinum .kpk-brand-dock__glass {
+  gap: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+.kpk-brand-dock.has-title-banner .kpk-brand-dock__glass::before,
+.kpk-brand-dock.has-title-banner .kpk-brand-dock__glass::after,
+.kpk-brand-dock.has-title-banner.is-mobile-solid .kpk-brand-dock__glass::before,
+.kpk-brand-dock.has-title-banner.is-mobile-solid .kpk-brand-dock__glass::after {
+  display: none !important;
+  content: none !important;
+}
+
 @media (max-width: 640px) {
   .kpk-brand-dock {
     top: max(10px, env(safe-area-inset-top, 0px));
@@ -2020,6 +2178,17 @@ body.kpk-lote-fill-hover-only .lote-interactivo:hover .path-default {
   .kpk-brand-dock.dock-style-champagne .kpk-brand-dock__name {
     font-size: clamp(11px, 3vw, 13px);
     letter-spacing: 0.1em;
+  }
+  .kpk-brand-dock.has-title-banner .kpk-brand-dock__glass {
+    padding: 0 !important;
+    min-height: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  .kpk-brand-dock__banner {
+    height: calc(clamp(24px, 7vw, 36px) * var(--kpk-banner-scale, 1));
+    max-width: calc(100vw - 28px);
   }
 }
 
@@ -3398,12 +3567,63 @@ body:not(.kpk-ai-panel-open) .kpk-finance-widget {
   }
 }
 
-
-
-
-
-body.kpk-feat-copilot-off #kpk-ai-bubble,
-body.kpk-feat-copilot-off #kpk-ai-panel,
-body.kpk-feat-copilot-off #kpk-mobile-ai-bubble-popup { display: none !important; }
-body.kpk-feat-weather-off #kpk-weather-widget { display: none !important; }
+/* ─── LOOK / TONOS 360 ─────────────────────────────────────────────── */
+#pannellum-viewer {
+  --kpk-tone-filter: none;
+}
+#pannellum-viewer .pnlm-render-container canvas,
+#pannellum-viewer canvas.pnlm-canvas {
+  filter: var(--kpk-tone-filter, none);
+}
+.kpk-tone-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  display: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at center,
+    transparent 42%,
+    rgba(8, 12, 18, 0.55) 100%);
+  transition: opacity 0.25s ease;
+}
+.tone-look-panel {
+  margin-top: 8px;
+}
+.tone-look-panel input[type="range"] {
+  width: 100%;
+  margin: 0 0 6px;
+}
+.tone-slider-row {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  align-items: center;
+  color: var(--f-text-muted);
+  font-weight: 500;
+  font-size: 11px;
+}
+.tone-preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+}
+.tone-preset-chip {
+  border: 1px solid var(--f-border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--f-text);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.tone-preset-chip:hover {
+  background: rgba(201, 168, 76, 0.18);
+  border-color: rgba(201, 168, 76, 0.45);
+}
 

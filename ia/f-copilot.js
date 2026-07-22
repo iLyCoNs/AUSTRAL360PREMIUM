@@ -41,6 +41,108 @@
   let _jarvisMode = false;
   let _shouldRestartMic = false;
   let _activeLote = null; // Lote actualmente en foco (para contexto persistente de la IA)
+  let _pendingLotePanelId = null; // Espera sí/no para abrir la tarjeta informativa
+
+  // ─── MEMORIA EJECUTIVA (sesión) ───────────────────────────────────────────
+  const EXEC_MEM_KEY = 'kpk_exec_memory_v1';
+  let _execMemory = {
+    openWidgets: {
+      map: false,
+      weather: false,
+      tourism: false,
+      calendar: false,
+      finance: false,
+      gallery: false,
+      lotePanel: false,
+      buyerDock: false,
+      stats: false,
+      prices: false
+    },
+    focus: { loteId: null, pinId: null, placeName: null, yaw: null, bearing: null },
+    pending: { lotePanelId: null, tourismOffer: null },
+    trail: [],
+    prefs: { style: null, lastCtas: [] }
+  };
+
+  function _loadExecMemory() {
+    try {
+      const raw = sessionStorage.getItem(EXEC_MEM_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        _execMemory = Object.assign(_execMemory, parsed);
+        if (!Array.isArray(_execMemory.trail)) _execMemory.trail = [];
+        if (!_execMemory.openWidgets) _execMemory.openWidgets = {};
+        if (!_execMemory.focus) _execMemory.focus = {};
+        if (!_execMemory.prefs) _execMemory.prefs = { style: null, lastCtas: [] };
+      }
+    } catch (e) { /* ok */ }
+  }
+
+  function _saveExecMemory() {
+    try {
+      sessionStorage.setItem(EXEC_MEM_KEY, JSON.stringify(_execMemory));
+    } catch (e) { /* ok */ }
+  }
+
+  function memNote(type, label) {
+    if (!_execMemory.trail) _execMemory.trail = [];
+    _execMemory.trail.push({
+      t: Date.now(),
+      type: String(type || 'event'),
+      label: String(label || '').slice(0, 80)
+    });
+    if (_execMemory.trail.length > 8) {
+      _execMemory.trail = _execMemory.trail.slice(-8);
+    }
+    _saveExecMemory();
+  }
+
+  function memSetOpen(widget, on) {
+    if (!_execMemory.openWidgets) _execMemory.openWidgets = {};
+    _execMemory.openWidgets[widget] = !!on;
+    _saveExecMemory();
+  }
+
+  function memSetFocus(partial) {
+    _execMemory.focus = Object.assign({}, _execMemory.focus || {}, partial || {});
+    _saveExecMemory();
+  }
+
+  function getExecMemorySnapshot() {
+    _execMemory.pending = {
+      lotePanelId: _pendingLotePanelId || null,
+      tourismOffer: (window.FerrariTourism && window.FerrariTourism.getPendingOffer)
+        ? (window.FerrariTourism.getPendingOffer() && window.FerrariTourism.getPendingOffer().title) || null
+        : null
+    };
+    if (_clientName) {
+      _execMemory.prefs = _execMemory.prefs || {};
+      _execMemory.prefs.clientName = _clientName;
+    }
+    const open = Object.keys(_execMemory.openWidgets || {})
+      .filter((k) => _execMemory.openWidgets[k])
+      .join(', ') || 'ninguno';
+    const focus = _execMemory.focus || {};
+    const trail = (_execMemory.trail || [])
+      .slice(-6)
+      .map((e) => e.type + (e.label ? ':' + e.label : ''))
+      .join(' → ') || '—';
+    return (
+      'ESTADO EJECUTIVO ACTUAL:\n' +
+      '- Widgets abiertos: ' + open + '\n' +
+      '- Foco: lugar=' + (focus.placeName || '—') +
+      ' | pin=' + (focus.pinId || '—') +
+      ' | lote=' + (focus.loteId || (_activeLote && _activeLote.id) || '—') +
+      ' | bearing=' + (focus.bearing != null ? Math.round(focus.bearing) + '°' : '—') +
+      ' | yaw=' + (focus.yaw != null ? Number(focus.yaw).toFixed(1) : '—') + '\n' +
+      '- Pendiente: tarjetaLote=' + (_execMemory.pending.lotePanelId || 'no') +
+      ' | ofertaTurismo=' + (_execMemory.pending.tourismOffer || 'no') + '\n' +
+      '- Trail reciente: ' + trail
+    );
+  }
+
+  _loadExecMemory();
   
   // Variables de interacción móvil y personalización
   let _clientName = localStorage.getItem('kpk_client_name') || '';
@@ -544,6 +646,9 @@
 
   let _hasGreeted = false;
   let _welcomeSpoken = false;
+  let _pendingWelcomeSpeak = '';
+  /** Tras onboarding: burbuja compacta hasta que el usuario la toque */
+  let _preferMinimalBubble = false;
 
   function _getAssistantMeta() {
     const brand = (window.FerrariBrandDock && typeof window.FerrariBrandDock.getBrand === 'function')
@@ -587,64 +692,94 @@
       const pack = _buildWelcomePack();
       _isWaitingForName = pack.waitingName;
       _hasGreeted = true;
+      // Guardar texto de saludo: se habla al abrir burbuja/panel (no al cargar)
+      _pendingWelcomeSpeak = pack.speakText;
+      _preferMinimalBubble = false;
 
-      // Un solo mensaje en el chat (nada más)
+      // Sembrar log SIN abrir UI
       if (_log) _log.innerHTML = '';
-      pack.messages.forEach((msg) => appendMessage(msg, 'system'));
+      pack.messages.forEach((msg) => _appendToLogOnly(msg, 'system'));
 
       if (_input) {
         _input.placeholder = pack.waitingName
           ? 'Escribe tu nombre aquí...'
           : 'Pregunta algo aquí o adjunta un archivo...';
-        if (pack.waitingName) {
-          setTimeout(() => { try { _input.focus(); } catch (e) {} }, 400);
-        }
       }
 
-      if (!isMobile && _panel && !_panel.classList.contains('is-open')) {
-        _panel.classList.add('is-open');
+      // Desktop + móvil: nada abierto al cargar. Solo FAB; saludo al primer toque.
+      if (_panel) {
+        _panel.classList.remove('is-open');
         _syncAiPanelBodyClass();
       }
-
-      if (isMobile) {
-        showMobileBubblePopup(pack.messages[0], true);
-      }
+      _preferMinimalBubble = false;
+      closeMobileBubblePopup(false);
 
       // Precargar Edge TTS para que el saludo no caiga a voz robótica
       _loadEdgeTTS().catch(() => {});
-
-      function _playWelcome(e) {
-        // Evita doble disparo click+touchstart en el mismo toque
-        if (_welcomeSpoken) return;
-        _welcomeSpoken = true;
-        window.removeEventListener('click', _playWelcome);
-        window.removeEventListener('touchstart', _playWelcome);
-        _unlockMobileAudio();
-        speakJarvis(pack.speakText);
-      }
-      window.addEventListener('click', _playWelcome, { passive: true });
-      window.addEventListener('touchstart', _playWelcome, { passive: true });
     } catch (err) {
       console.error('[Ferrari/IA] Error en onboarding:', err);
-      if (_panel) _panel.classList.add('is-open');
+      // No abrir panel en error: mantener foto limpia
     }
   }
 
-  /** Re-hablar el onboarding si abren el panel y aún no sonó (desktop) */
+  /** Escribe en el log del panel sin redirigir a burbuja móvil */
+  function _appendToLogOnly(text, role) {
+    if (!_log) return;
+    const msg = document.createElement('div');
+    msg.className = `kpk-ai-msg msg-${role}`;
+    const txtNode = document.createElement('div');
+    txtNode.className = 'kpk-ai-msg-text';
+    txtNode.innerHTML = _formatChatHtml(text);
+    msg.appendChild(txtNode);
+    const timeNode = document.createElement('span');
+    timeNode.className = 'kpk-ai-msg-time';
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    timeNode.textContent = pad(now.getHours()) + ':' + pad(now.getMinutes());
+    msg.appendChild(timeNode);
+    _log.appendChild(msg);
+    _log.scrollTop = _log.scrollHeight;
+  }
+
+  /** Fuerza burbuja compacta tras onboarding (aunque waitingName / speech digan lo contrario) */
+  function _forceMobileBubbleMinimal() {
+    const popup = document.getElementById('kpk-mobile-ai-bubble-popup');
+    if (!popup) return;
+    _preferMinimalBubble = true;
+    popup.classList.add('kpk-mbp-minimal', 'is-visible');
+    popup.style.display = 'flex';
+    _mobileHudPinned = false;
+    if (_bubblePopupTimeout) {
+      clearTimeout(_bubblePopupTimeout);
+      _bubblePopupTimeout = null;
+    }
+    const inputRow = popup.querySelector('#kpk-mbp-input-row') || popup.querySelector('.kpk-mbp-input-row');
+    const controlsRow = popup.querySelector('#kpk-mbp-controls-row') || popup.querySelector('.kpk-mbp-controls-row');
+    const chipsRow = popup.querySelector('#kpk-mbp-chips-row');
+    if (inputRow) inputRow.style.display = 'none';
+    if (controlsRow) controlsRow.style.display = 'none';
+    if (chipsRow) chipsRow.style.display = 'none';
+  }
+
+  /** Saludo de voz al primer contacto con burbuja/panel (no al cargar la página) */
   function _triggerWelcomeGreeting() {
     if (_welcomeSpoken) return;
-    const pack = _buildWelcomePack();
+    const text = _pendingWelcomeSpeak || (_buildWelcomePack().speakText);
+    if (!text) return;
     _welcomeSpoken = true;
+    _pendingWelcomeSpeak = '';
     _unlockMobileAudio();
-    speakJarvis(pack.speakText);
+    speakJarvis(text);
   }
 
   function _syncAiPanelBodyClass() {
     try {
       if (_panel && _panel.classList.contains('is-open')) {
         document.body.classList.add('kpk-ai-panel-open');
+        _panel.setAttribute('aria-hidden', 'false');
       } else {
         document.body.classList.remove('kpk-ai-panel-open');
+        if (_panel) _panel.setAttribute('aria-hidden', 'true');
       }
     } catch (e) {}
   }
@@ -659,7 +794,7 @@
         popup.style.display !== 'none';
 
       if (visible && popup.classList.contains('kpk-mbp-minimal')) {
-        // Estaba minimizado → expandir para poder escribir
+        // Estaba minimizado → expandir + saludo (expandMobileBubblePopup dispara voz)
         _mobileHudPinned = true;
         if (_bubblePopupTimeout) clearTimeout(_bubblePopupTimeout);
         expandMobileBubblePopup();
@@ -677,6 +812,7 @@
         : (_clientName
           ? pack.messages.join(' ')
           : pack.speakText);
+      _preferMinimalBubble = false;
       _mobileHudPinned = true;
       showMobileBubblePopup(txt, true);
       if (!_welcomeSpoken) {
@@ -1451,7 +1587,7 @@
       const context = buildContextPrompt();
 
       // 2) Crear historial temporal para la API (limitado a los últimos 6 turnos para evitar saturación de TPM/tokens)
-      const slicedHistory = _chatHistory.slice(-6);
+      const slicedHistory = _chatHistory.slice(-10);
       const apiHistory = [...slicedHistory, { role: 'user', text: enrichedPrompt }];
 
       let responseText = null;
@@ -1885,12 +2021,13 @@
   }
 
   // ─── ACCIONES CLIENT-SIDE ───────────────────────────────────────────
-  /** Completa lookAt ↔ ficha para que el UI siempre acompañe al lote del que se habla */
+  /** Completa lookAt + highlight; la ficha se ofrece (sí/no), no se abre sola */
   function _enrichSceneActions(actions) {
     if (!Array.isArray(actions) || !actions.length) return actions || [];
     const out = actions.slice();
     const look = out.find((a) => a.type === 'lookAtLote');
     const panel = out.find((a) => a.type === 'openLotePanel');
+    const offer = out.find((a) => a.type === 'offerLotePanel');
     const gal = out.find((a) => a.type === 'openGallery');
     const pdf = out.find((a) => a.type === 'downloadPDF');
     const fin = out.find((a) => a.type === 'openFinanceWidget');
@@ -1898,21 +2035,19 @@
     let focusId =
       (look && look.loteId) ||
       (panel && panel.loteId) ||
+      (offer && offer.loteId) ||
       (gal && gal.loteId) ||
       (pdf && pdf.loteId) ||
       (fin && fin.loteId) ||
       null;
 
-    if (!focusId && _activeLote && (gal || pdf || fin || look || panel)) {
+    if (!focusId && _activeLote && (gal || pdf || fin || look || panel || offer)) {
       focusId = _activeLote.id;
     }
 
     if (focusId) {
       if (!out.some((a) => a.type === 'lookAtLote')) {
         out.unshift({ type: 'lookAtLote', loteId: focusId, hfov: 70 });
-      }
-      if (!out.some((a) => a.type === 'openLotePanel')) {
-        out.push({ type: 'openLotePanel', loteId: focusId });
       }
       if (!out.some((a) => a.type === 'highlightLotes')) {
         out.push({
@@ -1922,144 +2057,517 @@
         });
       }
     }
+
+    // openLotePanel sin confirmed → ofrecer (preguntar) en vez de abrir
+    for (let i = out.length - 1; i >= 0; i--) {
+      const a = out[i];
+      if (a && a.type === 'openLotePanel' && !(a.confirmed === true || a.confirm === true)) {
+        const lid = a.loteId || focusId;
+        out.splice(i, 1);
+        if (lid && !out.some((x) => x.type === 'offerLotePanel')) {
+          out.push({ type: 'offerLotePanel', loteId: lid });
+        }
+      }
+    }
+
     return out;
+  }
+
+  // ─── CONTROL EJECUTIVO: lugares, brújula, cierres ─────────────────────────
+  function _normTxt(s) {
+    return String(s || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function _bearingCardinal(deg) {
+    const d = ((Number(deg) % 360) + 360) % 360;
+    const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+    return dirs[Math.round(d / 45) % 8];
+  }
+
+  function _scorePlaceName(query, title) {
+    const q = _normTxt(query);
+    const t = _normTxt(title);
+    if (!q || !t) return 0;
+    if (t === q) return 100;
+    if (t.indexOf(q) !== -1 || q.indexOf(t) !== -1) return 80;
+    const qw = q.split(' ').filter(Boolean);
+    let hit = 0;
+    qw.forEach((w) => { if (w.length > 2 && t.indexOf(w) !== -1) hit++; });
+    return hit ? 40 + hit * 10 : 0;
+  }
+
+  function _findPlaceByQuery(query) {
+    const q = String(query || '').trim();
+    if (!q) return null;
+    let best = null;
+    let bestScore = 0;
+
+    const pins = (window.FerrariGeo && Array.isArray(window.FerrariGeo.pins))
+      ? window.FerrariGeo.pins
+      : [];
+    pins.forEach((p) => {
+      if (!p || p.lat == null || p.lng == null) return;
+      const title = p.titulo || p.nombre || '';
+      const score = _scorePlaceName(q, title);
+      if (score > bestScore) {
+        bestScore = score;
+        best = {
+          kind: 'pin',
+          id: p.id,
+          title: title,
+          lat: p.lat,
+          lng: p.lng,
+          yaw: p.yaw,
+          tipo: p.tipo,
+          pin: p
+        };
+      }
+    });
+
+    try {
+      if (window.FerrariTourism && typeof window.FerrariTourism.listByCategory === 'function') {
+        ['nearest', 'pueblos', 'lagos', 'termas', 'trekking', 'nieve', 'rafting', 'cultura'].forEach((cat) => {
+          const list = window.FerrariTourism.listByCategory(cat) || [];
+          list.forEach((poi) => {
+            if (!poi) return;
+            const lat = poi.lat != null ? poi.lat : (poi.coords && poi.coords.lat);
+            const lng = poi.lng != null ? poi.lng : (poi.coords && poi.coords.lng);
+            if (lat == null || lng == null) return;
+            const score = _scorePlaceName(q, poi.title || poi.id || '');
+            if (score > bestScore) {
+              bestScore = score;
+              best = {
+                kind: 'tourism',
+                id: poi.id,
+                title: poi.title || poi.id,
+                lat: lat,
+                lng: lng,
+                yaw: null,
+                tipo: 'tourism',
+                poi: poi
+              };
+            }
+          });
+        });
+      }
+    } catch (e) { /* ok */ }
+
+    return bestScore >= 40 ? best : null;
+  }
+
+  function lookAtYaw(yaw, pitch, hfov) {
+    const viewer = window.Ferrari && window.Ferrari.viewer;
+    if (!viewer || typeof viewer.lookAt !== 'function') return;
+    const p = pitch != null ? Number(pitch) : 0;
+    const h = hfov != null ? Number(hfov) : 75;
+    viewer.lookAt(p, Number(yaw), h, 1000);
+    memSetFocus({ yaw: Number(yaw), bearing: null });
+    memNote('lookAtYaw', String(Math.round(Number(yaw))) + '°');
+  }
+
+  function pointCompass(bearing) {
+    if (window.FerrariCompass && typeof window.FerrariCompass.pulse === 'function') {
+      window.FerrariCompass.pulse(bearing);
+    }
+    memSetFocus({ bearing: Number(bearing) });
+    memNote('pointCompass', Math.round(Number(bearing)) + '°');
+  }
+
+  function spotlightPin(queryOrId) {
+    const pins = (window.FerrariGeo && Array.isArray(window.FerrariGeo.pins))
+      ? window.FerrariGeo.pins
+      : [];
+    let pin = pins.find((p) => p && p.id === queryOrId);
+    if (!pin) {
+      const found = _findPlaceByQuery(queryOrId);
+      if (found && found.kind === 'pin') pin = found.pin;
+    }
+    if (!pin) return null;
+    if (window.FerrariGeoPins && typeof window.FerrariGeoPins.openPin === 'function') {
+      window.FerrariGeoPins.openPin(pin.id);
+    } else if (window.FerrariGeoPins && typeof window.FerrariGeoPins.bringFront === 'function') {
+      window.FerrariGeoPins.bringFront(pin.id);
+    }
+    memSetFocus({ pinId: pin.id, placeName: pin.titulo || pin.nombre || null });
+    memNote('spotlightPin', pin.titulo || pin.id);
+    return pin;
+  }
+
+  function focusPlace(act) {
+    const query = (act && (act.query || act.name || act.place || act.poiName)) || '';
+    const openMap = !(act && act.openMap === false);
+    const openPinFlag = !(act && act.openPin === false);
+    const found = _findPlaceByQuery(query);
+    if (!found) {
+      memNote('focusPlaceMiss', query);
+      return {
+        ok: false,
+        text: 'No encontré «' + query + '» en los pines ni en el catálogo turístico. Prueba con otro nombre.'
+      };
+    }
+
+    const origin = window.FerrariGeo && window.FerrariGeo.droneOrigin;
+    let bearing = null;
+    let yaw = found.yaw;
+    if (origin && window.FerrariGeo.bearingDeg) {
+      bearing = window.FerrariGeo.bearingDeg(origin.lat, origin.lng, found.lat, found.lng);
+      if (window.FerrariGeo.bearingToYaw) {
+        yaw = window.FerrariGeo.bearingToYaw(bearing);
+      }
+    }
+    if (yaw == null && bearing != null) yaw = bearing;
+
+    const viewer = window.Ferrari && window.Ferrari.viewer;
+    if (viewer && typeof viewer.lookAt === 'function' && yaw != null) {
+      viewer.lookAt(0, yaw, act && act.hfov != null ? Number(act.hfov) : 70, 1100);
+    }
+    if (bearing != null) pointCompass(bearing);
+    if (openPinFlag && found.kind === 'pin' && found.id) {
+      spotlightPin(found.id);
+    }
+    if (openMap && found.lat != null && found.lng != null) {
+      openMapWidget(found.lat, found.lng, found.title);
+      memSetOpen('map', true);
+    }
+
+    memSetFocus({
+      placeName: found.title,
+      pinId: found.kind === 'pin' ? found.id : null,
+      yaw: yaw,
+      bearing: bearing
+    });
+    memNote('focusPlace', found.title);
+
+    const card = bearing != null ? _bearingCardinal(bearing) : '—';
+    const deg = bearing != null ? Math.round(bearing) : '—';
+    return {
+      ok: true,
+      found: found,
+      bearing: bearing,
+      yaw: yaw,
+      text:
+        '<b>' + found.title + '</b> queda hacia el <b>' + card + '</b> (~' + deg +
+        '°) según la brújula. Te giré la cámara 360°' +
+        (openMap ? ' y abrí el mapa con la ruta' : '') + '.'
+    };
+  }
+
+  function closeLotePanelAction() {
+    if (window.FerrariUI && typeof window.FerrariUI.closeLotePanel === 'function') {
+      window.FerrariUI.closeLotePanel();
+    }
+    memSetOpen('lotePanel', false);
+    memNote('close', 'lotePanel');
+  }
+
+  function closeGalleryAction() {
+    if (window.FerrariGallery && typeof window.FerrariGallery.close === 'function') {
+      window.FerrariGallery.close();
+    }
+    memSetOpen('gallery', false);
+    memNote('close', 'gallery');
+  }
+
+  function closeWeatherWidget() {
+    if (window.FerrariWeather && typeof window.FerrariWeather.collapse === 'function') {
+      window.FerrariWeather.collapse();
+    }
+    memSetOpen('weather', false);
+    memNote('close', 'weather');
+  }
+
+  function closeFinanceWidgetAction() {
+    try { closeFinanceWidget(); } catch (e) { /* defined later at runtime */ }
+    memSetOpen('finance', false);
+  }
+
+  function collapseBuyerDock() {
+    if (window.FerrariBuyerDock && typeof window.FerrariBuyerDock.setExpanded === 'function') {
+      window.FerrariBuyerDock.setExpanded(false);
+    }
+    memSetOpen('buyerDock', false);
+    memNote('close', 'buyerDock');
+  }
+
+  function expandBuyerDock() {
+    if (window.FerrariBuyerDock && typeof window.FerrariBuyerDock.setExpanded === 'function') {
+      window.FerrariBuyerDock.setExpanded(true);
+    }
+    memSetOpen('buyerDock', true);
+    memNote('open', 'buyerDock');
+  }
+
+  function setBuyerTab(tab) {
+    expandBuyerDock();
+    if (window.FerrariBuyerDock && typeof window.FerrariBuyerDock.setTab === 'function') {
+      window.FerrariBuyerDock.setTab(tab || 'lotes');
+    }
+    memNote('buyerTab', tab || 'lotes');
+  }
+
+  function searchNearbyAction() {
+    expandBuyerDock();
+    setBuyerTab('lugares');
+    if (window.FerrariBuyerDock && typeof window.FerrariBuyerDock.searchNearby === 'function') {
+      window.FerrariBuyerDock.searchNearby();
+    }
+    memNote('searchNearby', '');
+  }
+
+  function closeAllWidgets() {
+    try { closeMapWidget(); } catch (e) {}
+    try { if (window.FerrariTourism) window.FerrariTourism.closeWidget(); } catch (e) {}
+    try { closeCalendarWidget(); } catch (e) {}
+    try { closeFinanceWidgetAction(); } catch (e) {}
+    try { closeGalleryAction(); } catch (e) {}
+    try { closeLotePanelAction(); } catch (e) {}
+    try { closeWeatherWidget(); } catch (e) {}
+    try { collapseBuyerDock(); } catch (e) {}
+    try { stopAutoTour(); } catch (e) {}
+    try { clearHighlights(); } catch (e) {}
+    const statsWidget = document.getElementById('kpk-stats-widget');
+    if (statsWidget) {
+      statsWidget.style.display = 'none';
+      statsWidget.classList.remove('is-open');
+    }
+    const priceWidget = document.getElementById('kpk-price-widget');
+    if (priceWidget) {
+      priceWidget.style.display = 'none';
+      priceWidget.classList.remove('is-open');
+    }
+    Object.keys(_execMemory.openWidgets || {}).forEach((k) => {
+      _execMemory.openWidgets[k] = false;
+    });
+    _saveExecMemory();
+    memNote('closeAll', 'scene');
+  }
+
+  function stageScene(act) {
+    if (!(act && act.closeOthers === false)) closeAllWidgets();
+    const nested = (act && Array.isArray(act.actions)) ? act.actions : [];
+    nested.forEach((sub) => {
+      try { _runOneAction(sub, nested); } catch (e) {
+        console.warn('[Ferrari/IA] stageScene sub:', e);
+      }
+    });
+    memNote('stageScene', String(nested.length) + ' acciones');
+  }
+
+  function _runOneAction(act, enriched) {
+    if (!act || !act.type) return;
+    switch (act.type) {
+      case 'lookAtLote':
+        lookAtLote(act.loteId, act.hfov);
+        pulseSmartPin(act.loteId);
+        memSetFocus({ loteId: act.loteId });
+        memNote('lookAtLote', act.loteId);
+        break;
+      case 'openLotePanel':
+        if (act.confirmed === true || act.confirm === true) {
+          _pendingLotePanelId = null;
+          const hasLookAt = (enriched || []).some((a) => a.type === 'lookAtLote');
+          if (hasLookAt) setTimeout(() => openLotePanel(act.loteId), 520);
+          else openLotePanel(act.loteId);
+          memSetOpen('lotePanel', true);
+          memNote('open', 'lotePanel');
+        } else if (act.loteId) {
+          _pendingLotePanelId = act.loteId;
+        }
+        break;
+      case 'offerLotePanel':
+        if (act.loteId) {
+          _pendingLotePanelId = act.loteId;
+          const voiceMode = _getVoiceMode();
+          const isG = voiceMode.includes('gigi') || voiceMode.includes('dalia');
+          const ask = isG
+            ? '¿Quieres que te abra la <b>tarjeta informativa</b> de este lote? (sí / no)'
+            : '¿Desea que abra la <b>tarjeta informativa</b> de este lote? (sí / no)';
+          setTimeout(() => { try { appendMessage(ask, 'system'); } catch (e) {} }, 280);
+        }
+        break;
+      case 'highlightLotes':
+        highlightLotes(act.loteIds, act.color);
+        break;
+      case 'clearHighlights':
+        clearHighlights();
+        break;
+      case 'submitLead':
+        submitLead(act.name, act.email, act.phone, act.loteId, act.notes);
+        break;
+      case 'setNearbyRadius':
+        if (window.FerrariBuyerDock && typeof window.FerrariBuyerDock.setRadius === 'function') {
+          window.FerrariBuyerDock.setRadius(act.radiusKm);
+          if (act.category && typeof window.FerrariBuyerDock.setFilter === 'function') {
+            window.FerrariBuyerDock.setFilter(act.category);
+          }
+          if (typeof window.FerrariBuyerDock.searchNearby === 'function') {
+            window.FerrariBuyerDock.searchNearby();
+          }
+        }
+        memSetOpen('buyerDock', true);
+        break;
+      case 'openNearbyTab':
+        setBuyerTab('lugares');
+        break;
+      case 'filterNearby':
+        setBuyerTab('lugares');
+        if (act.category && window.FerrariBuyerDock && typeof window.FerrariBuyerDock.setFilter === 'function') {
+          window.FerrariBuyerDock.setFilter(act.category);
+        }
+        break;
+      case 'setBuyerTab':
+        setBuyerTab(act.tab || 'lotes');
+        break;
+      case 'expandBuyerDock':
+        expandBuyerDock();
+        break;
+      case 'collapseBuyerDock':
+        collapseBuyerDock();
+        break;
+      case 'searchNearby':
+        searchNearbyAction();
+        break;
+      case 'focusNearbyPOI':
+        focusNearbyPOI(act.poiName || act.poiId);
+        memNote('focusNearbyPOI', act.poiName || act.poiId || '');
+        break;
+      case 'focusPlace': {
+        const res = focusPlace(act);
+        if (res && !res.ok && res.text) {
+          setTimeout(() => { try { appendMessage(res.text, 'system'); } catch (e) {} }, 120);
+        }
+        break;
+      }
+      case 'pointCompass':
+        pointCompass(act.bearing != null ? act.bearing : act.deg);
+        break;
+      case 'spotlightPin':
+        spotlightPin(act.pinId || act.query || act.name);
+        break;
+      case 'lookAtYaw':
+        lookAtYaw(act.yaw, act.pitch, act.hfov);
+        break;
+      case 'openMapWidget':
+        openMapWidget(act.lat, act.lng, act.title);
+        memSetOpen('map', true);
+        break;
+      case 'closeMapWidget':
+        closeMapWidget();
+        memSetOpen('map', false);
+        break;
+      case 'openWeatherWidget':
+        openWeatherWidget();
+        break;
+      case 'closeWeatherWidget':
+        closeWeatherWidget();
+        break;
+      case 'openGallery':
+        openGalleryForLote(act.loteId || null);
+        memSetOpen('gallery', true);
+        break;
+      case 'closeGallery':
+        closeGalleryAction();
+        break;
+      case 'closeLotePanel':
+        closeLotePanelAction();
+        break;
+      case 'closeFinanceWidget':
+        closeFinanceWidgetAction();
+        break;
+      case 'closeAllWidgets':
+        closeAllWidgets();
+        break;
+      case 'stageScene':
+        stageScene(act);
+        break;
+      case 'startAutoTour':
+        startAutoTour();
+        break;
+      case 'stopAutoTour':
+        stopAutoTour();
+        break;
+      case 'showStats':
+        showStatsWidget();
+        memSetOpen('stats', true);
+        break;
+      case 'showPriceComparison':
+        showPriceWidget();
+        memSetOpen('prices', true);
+        break;
+      case 'highlightAvailable':
+        highlightAvailableLotes();
+        break;
+      case 'downloadPDF': {
+        const currentLote = window.FerrariUI && typeof window.FerrariUI.getCurrentLoteId === 'function'
+          ? window.FerrariUI.getCurrentLoteId()
+          : null;
+        const targetLoteId = act.loteId || (_activeLote && _activeLote.id) || currentLote;
+        if (targetLoteId) {
+          if (typeof openLotePanel === 'function') openLotePanel(targetLoteId);
+          memSetOpen('lotePanel', true);
+          setTimeout(() => {
+            const pdfBtn = document.getElementById('spec-btn-pdf');
+            if (pdfBtn) pdfBtn.click();
+          }, 650);
+        }
+        break;
+      }
+      case 'openCalendarWidget':
+        openCalendarWidget(act.loteId || null, act);
+        memSetOpen('calendar', true);
+        break;
+      case 'fillCalendarVisit':
+        fillCalendarVisit(act);
+        break;
+      case 'confirmCalendarVisit':
+        confirmCalendarVisit();
+        break;
+      case 'closeCalendarWidget':
+        closeCalendarWidget();
+        memSetOpen('calendar', false);
+        break;
+      case 'openFinanceWidget':
+        openFinanceWidget(act.loteId || null);
+        memSetOpen('finance', true);
+        break;
+      case 'openUrlInNewTab':
+        window.open(act.url, '_blank', 'noopener');
+        break;
+      case 'offerTourism':
+        offerTourismCategory(act.category || act.cat || '');
+        break;
+      case 'openTourismWidget':
+        openTourismFromAction(act);
+        memSetOpen('tourism', true);
+        break;
+      case 'closeTourismWidget':
+        if (window.FerrariTourism) window.FerrariTourism.closeWidget();
+        memSetOpen('tourism', false);
+        break;
+      case 'confirmTourismOffer':
+        if (window.FerrariTourism) window.FerrariTourism.confirmPendingOffer();
+        memSetOpen('tourism', true);
+        break;
+      default:
+        console.warn('[Ferrari/IA] Acción no soportada:', act.type);
+    }
   }
 
   function executeActions(actions) {
     const enriched = _enrichSceneActions(actions);
-    autoCloseUnusedWidgets(enriched);
-    enriched.forEach(act => {
+    const skipAutoClose = enriched.some(
+      (a) => a.type === 'closeAllWidgets' || a.type === 'stageScene' || a.type === 'focusPlace'
+    );
+    if (!skipAutoClose) autoCloseUnusedWidgets(enriched);
+    enriched.forEach((act) => {
       try {
-        switch (act.type) {
-          case 'lookAtLote':
-            lookAtLote(act.loteId, act.hfov);
-            // Pulsar el Smart Pin del lote para que el usuario lo vea claramente
-            pulseSmartPin(act.loteId);
-            break;
-          case 'openLotePanel':
-            // Si hay zoom/mirar en el mismo bloque, abrir ficha tras el giro (snappy)
-            const hasLookAt = enriched.some(a => a.type === 'lookAtLote');
-            if (hasLookAt) {
-              setTimeout(() => {
-                openLotePanel(act.loteId);
-              }, 520);
-            } else {
-              openLotePanel(act.loteId);
-            }
-            break;
-          case 'highlightLotes':
-            highlightLotes(act.loteIds, act.color);
-            break;
-          case 'clearHighlights':
-            clearHighlights();
-            break;
-          case 'submitLead':
-            submitLead(act.name, act.email, act.phone, act.loteId, act.notes);
-            break;
-          case 'setNearbyRadius':
-            if (window.FerrariBuyerDock && typeof window.FerrariBuyerDock.setRadius === 'function') {
-              window.FerrariBuyerDock.setRadius(act.radiusKm);
-              if (act.category && typeof window.FerrariBuyerDock.setFilter === 'function') {
-                window.FerrariBuyerDock.setFilter(act.category);
-              }
-              if (typeof window.FerrariBuyerDock.searchNearby === 'function') {
-                window.FerrariBuyerDock.searchNearby();
-              }
-            }
-            break;
-          case 'openNearbyTab':
-            if (window.FerrariBuyerDock) {
-              if (typeof window.FerrariBuyerDock.setExpanded === 'function') {
-                window.FerrariBuyerDock.setExpanded(true);
-              }
-              if (typeof window.FerrariBuyerDock.setTab === 'function') {
-                window.FerrariBuyerDock.setTab('lugares');
-              }
-            }
-            break;
-          case 'filterNearby':
-            if (window.FerrariBuyerDock) {
-              if (typeof window.FerrariBuyerDock.setExpanded === 'function') window.FerrariBuyerDock.setExpanded(true);
-              if (typeof window.FerrariBuyerDock.setTab === 'function') window.FerrariBuyerDock.setTab('lugares');
-              if (act.category && typeof window.FerrariBuyerDock.setFilter === 'function') {
-                window.FerrariBuyerDock.setFilter(act.category);
-              }
-            }
-            break;
-          case 'focusNearbyPOI':
-            focusNearbyPOI(act.poiName || act.poiId);
-            break;
-          case 'openMapWidget':
-            openMapWidget(act.lat, act.lng, act.title);
-            break;
-          case 'closeMapWidget':
-            closeMapWidget();
-            break;
-          case 'openWeatherWidget':
-            openWeatherWidget();
-            break;
-          case 'openGallery':
-            openGalleryForLote(act.loteId || null);
-            break;
-          case 'startAutoTour':
-            startAutoTour();
-            break;
-          case 'stopAutoTour':
-            stopAutoTour();
-            break;
-          case 'showStats':
-            showStatsWidget();
-            break;
-          case 'showPriceComparison':
-            showPriceWidget();
-            break;
-          case 'highlightAvailable':
-            highlightAvailableLotes();
-            break;
-          case 'downloadPDF':
-            const currentLote = window.FerrariUI && typeof window.FerrariUI.getCurrentLoteId === 'function' ? window.FerrariUI.getCurrentLoteId() : null;
-            const targetLoteId = act.loteId || (_activeLote && _activeLote.id) || currentLote;
-            if (targetLoteId) {
-              if (typeof openLotePanel === 'function') openLotePanel(targetLoteId);
-              setTimeout(() => {
-                const pdfBtn = document.getElementById('spec-btn-pdf');
-                if (pdfBtn) pdfBtn.click();
-              }, 650);
-            }
-            break;
-          case 'openCalendarWidget':
-            openCalendarWidget(act.loteId || null, act);
-            break;
-          case 'fillCalendarVisit':
-            fillCalendarVisit(act);
-            break;
-          case 'confirmCalendarVisit':
-            confirmCalendarVisit();
-            break;
-          case 'closeCalendarWidget':
-            closeCalendarWidget();
-            break;
-          case 'openFinanceWidget':
-            openFinanceWidget(act.loteId || null);
-            break;
-          case 'openUrlInNewTab':
-            window.open(act.url, '_blank', 'noopener');
-            break;
-          case 'offerTourism':
-            offerTourismCategory(act.category || act.cat || '');
-            break;
-          case 'openTourismWidget':
-            openTourismFromAction(act);
-            break;
-          case 'closeTourismWidget':
-            if (window.FerrariTourism) window.FerrariTourism.closeWidget();
-            break;
-          case 'confirmTourismOffer':
-            if (window.FerrariTourism) window.FerrariTourism.confirmPendingOffer();
-            break;
-          default:
-            console.warn('[Ferrari/IA] Acción no soportada:', act.type);
-        }
+        _runOneAction(act, enriched);
       } catch (err) {
         console.warn('[Ferrari/IA] Error ejecutando acción:', act, err);
       }
@@ -2108,17 +2616,21 @@
   function openWeatherWidget() {
     let widget = document.getElementById('kpk-weather-widget');
     if (!widget) {
-      // Si el widget no existe, disparar refresh para que f-weather.js lo cree
       if (window.FerrariWeather && typeof window.FerrariWeather.refresh === 'function') {
         window.FerrariWeather.refresh();
       }
       widget = document.getElementById('kpk-weather-widget');
+    }
+    if (window.FerrariWeather && typeof window.FerrariWeather.expand === 'function') {
+      window.FerrariWeather.expand();
     }
     if (widget) {
       widget.style.display = '';
       widget.classList.add('kpk-widget-jarvis-highlight');
       setTimeout(() => widget && widget.classList.remove('kpk-widget-jarvis-highlight'), 2000);
     }
+    memSetOpen('weather', true);
+    memNote('open', 'weather');
   }
 
   // ─── GALERÍA DE FOTOS DEL LOTE ────────────────────────────────────────────
@@ -2149,10 +2661,22 @@
     // Cerrar widgets de tour si existen
     const tw = document.getElementById('kpk-tour-overlay');
     if (tw) tw.remove();
+    if (window.FerrariIdleCam && typeof window.FerrariIdleCam.resume === 'function') {
+      window.FerrariIdleCam.resume();
+    }
   }
 
   function startAutoTour() {
-    stopAutoTour(); // cancelar cualquier tour previo
+    // Cancelar tour previo sin reactivar idle (pause abajo)
+    _autoTourActive = false;
+    _autoTourTimers.forEach(t => clearTimeout(t));
+    _autoTourTimers = [];
+    const twPrev = document.getElementById('kpk-tour-overlay');
+    if (twPrev) twPrev.remove();
+
+    if (window.FerrariIdleCam && typeof window.FerrariIdleCam.pause === 'function') {
+      window.FerrariIdleCam.pause();
+    }
     _autoTourActive = true;
 
     const lotes = (window.allDrawnLines || [])
@@ -4186,7 +4710,7 @@
               },
               {
                 name: "openLotePanel",
-                description: "Abre la ficha del lote.",
+                description: "Ofrece/abre ficha del lote (el cliente confirma en chat).",
                 parameters: {
                   type: "OBJECT",
                   properties: {
@@ -4198,6 +4722,26 @@
               {
                 name: "openNearbyTab",
                 description: "Abre la pestaña de cercanos.",
+                parameters: {
+                  type: "OBJECT"
+                }
+              },
+              {
+                name: "focusPlace",
+                description: "Orienta cámara, brújula, pin y mapa hacia un lugar (ej. Puerto Montt).",
+                parameters: {
+                  type: "OBJECT",
+                  properties: {
+                    query: { type: "STRING" },
+                    openMap: { type: "BOOLEAN" },
+                    openPin: { type: "BOOLEAN" }
+                  },
+                  required: ["query"]
+                }
+              },
+              {
+                name: "closeAllWidgets",
+                description: "Cierra todos los widgets y limpia la escena visual.",
                 parameters: {
                   type: "OBJECT"
                 }
@@ -4281,11 +4825,31 @@
             if (call.name === 'lookAtLote') {
               lookAtLote(call.args.loteId, call.args.hfov);
             } else if (call.name === 'openLotePanel') {
-              openLotePanel(call.args.loteId);
+              // No abrir sola: ofrecer y esperar confirmación del cliente
+              if (call.args && call.args.loteId) {
+                _pendingLotePanelId = call.args.loteId;
+                try {
+                  appendMessage(
+                    '¿Quieres que te abra la <b>tarjeta informativa</b> de este lote? (sí / no)',
+                    'system'
+                  );
+                } catch (e) {}
+              }
             } else if (call.name === 'openNearbyTab') {
               if (window.FerrariBuyerDock && typeof window.FerrariBuyerDock.setTab === 'function') {
                 window.FerrariBuyerDock.setTab('lugares');
               }
+            } else if (call.name === 'focusPlace') {
+              const res = focusPlace({
+                query: (call.args && call.args.query) || '',
+                openMap: !(call.args && call.args.openMap === false),
+                openPin: !(call.args && call.args.openPin === false)
+              });
+              if (res && res.text) {
+                try { appendMessage(res.text, 'system'); } catch (e) {}
+              }
+            } else if (call.name === 'closeAllWidgets') {
+              closeAllWidgets();
             }
           } catch (err) {
             status = "error";
@@ -4623,6 +5187,80 @@
       };
     }
 
+    // 1a) Tarjeta informativa del lote — confirmar oferta pendiente
+    if (_pendingLotePanelId) {
+      if (/^(si|sí|dale|ok|okay|claro|vamos|muéstrame|muestrame|mostrar|quiero\s+ver|si\s+por\s+favor|sip|sep|abre|abrir|abrela|ábrela)\b/.test(clean) ||
+          /(si|sí).{0,16}(tarjeta|ficha|panel|informativ)/.test(clean) ||
+          /^(la\s+tarjeta|la\s+ficha|abre\s+la|abrir\s+la)/.test(clean)) {
+        const id = _pendingLotePanelId;
+        _pendingLotePanelId = null;
+        const voiceMode = _getVoiceMode();
+        const isG = voiceMode.includes('gigi') || voiceMode.includes('dalia');
+        return {
+          text: isG
+            ? '¡Listo! Te abro la <b>tarjeta informativa</b> del lote 😊'
+            : 'Perfecto. Abro la <b>tarjeta informativa</b> del lote.',
+          actions: [{ type: 'openLotePanel', loteId: id, confirmed: true }]
+        };
+      }
+      if (/^(no|ahora\s+no|despues|después|mejor\s+no|cancelar|omitir|solo\s+el\s+360|solo\s+mirar)\b/.test(clean)) {
+        _pendingLotePanelId = null;
+        const voiceMode = _getVoiceMode();
+        const isG = voiceMode.includes('gigi') || voiceMode.includes('dalia');
+        return {
+          text: isG
+            ? 'Dale, seguimos solo con la vista 360°. Cuando quieras la tarjeta, dímelo.'
+            : 'De acuerdo. Seguimos con la vista 360°. Si desea la tarjeta informativa, indíquelo.',
+          actions: []
+        };
+      }
+    }
+
+    // 1a2) Cerrar todo / limpiar escena
+    if (/(cierra\s+todo|cerrar\s+todo|limpia\s+la\s+pantalla|limpia\s+pantalla|quita\s+los\s+widgets|cerrar\s+widgets|limpia\s+escena|reset\s+vista)/.test(clean)) {
+      return {
+        text: 'Listo: cerré widgets, paneles y resaltados para dejar la vista 360° limpia.',
+        actions: [{ type: 'closeAllWidgets' }]
+      };
+    }
+
+    // 1a3) ¿Hacia dónde queda X? → focusPlace (brújula + cámara + pin + mapa)
+    const placeDir = clean.match(
+      /(?:hacia\s+donde\s+(?:queda|esta|está)|donde\s+queda|d[oó]nde\s+queda|donde\s+esta|d[oó]nde\s+est[aá]|se[nñ]ala|apunta(?:\s+hacia)?|muestra(?:\s+hacia)?|mira\s+hacia|orienta(?:\s+hacia)?)\s+(.+?)[\s?!.]*$/i
+    );
+    if (placeDir && placeDir[1]) {
+      let place = placeDir[1]
+        .replace(/^(el|la|los|las|al|a\s+la|a\s+el)\s+/i, '')
+        .replace(/\b(por\s+favor|please|en\s+el\s+mapa|en\s+360)\b/gi, '')
+        .trim();
+      if (place.length >= 2 && !/(lote|parcela|precio|uf)\b/.test(place)) {
+        const preview = _findPlaceByQuery(place);
+        const voiceMode = _getVoiceMode();
+        const isG = voiceMode.includes('gigi') || voiceMode.includes('dalia');
+        if (preview) {
+          const origin = window.FerrariGeo && window.FerrariGeo.droneOrigin;
+          let bearing = null;
+          if (origin && window.FerrariGeo.bearingDeg) {
+            bearing = window.FerrariGeo.bearingDeg(origin.lat, origin.lng, preview.lat, preview.lng);
+          }
+          const card = bearing != null ? _bearingCardinal(bearing) : '—';
+          const deg = bearing != null ? Math.round(bearing) : '—';
+          return {
+            text: isG
+              ? `¡Claro! <b>${preview.title}</b> queda al <b>${card}</b> (~${deg}°). Te giro la cámara, pulso la brújula y abro mapa + pin 😊`
+              : `<b>${preview.title}</b> queda al <b>${card}</b> (~${deg}°). Oriento la cámara, brújula, pin y mapa.`,
+            actions: [{ type: 'focusPlace', query: preview.title, openMap: true, openPin: true }]
+          };
+        }
+        return {
+          text: isG
+            ? `Voy a buscar «${place}» en pines y catálogo…`
+            : `Busco «${place}» en pines y catálogo…`,
+          actions: [{ type: 'focusPlace', query: place, openMap: true, openPin: true }]
+        };
+      }
+    }
+
     // 1b) Jarvis Turismo — confirmar oferta pendiente
     if (window.FerrariTourism && window.FerrariTourism.getPendingOffer && window.FerrariTourism.getPendingOffer()) {
       if (/^(si|sí|dale|ok|okay|claro|vamos|muéstrame|muestrame|mostrar|quiero\s+ver|si\s+por\s+favor|sip|sep)\b/.test(clean) ||
@@ -4724,7 +5362,7 @@
       return { text: text, actions: [openAct] };
     }
     
-    // 2) Lote / Parcela específica — siempre ficha + pitch comercial + cámara
+    // 2) Lote / Parcela específica — cámara + pitch; ficha solo si el cliente confirma
     const loteMatch = clean.match(/(?:lote|parcela|terreno|zoom\s+al|ver\s+el|mira\s+el|ir\s+al|ir\s+a\s+la|acercate\s+al|acerca\s+al|nro|numero|n[ºo°])\s*(\d{1,3})\b/i);
     if (loteMatch) {
       const num = loteMatch[1];
@@ -4737,18 +5375,30 @@
         const pideFotos = /(foto|galeria|imagenes|imágenes)/.test(clean);
         const pidePdf = /(pdf|ficha\s+pdf|folleto|descarg)/.test(clean);
         const pideFin = /(financi|cuota|pie|credito|crédito|simul)/.test(clean);
+        const pideFicha =
+          /(tarjeta|ficha\s+informativ|abre\s+la\s+ficha|abre\s+la\s+tarjeta|panel\s+del\s+lote|datos\s+completos)/.test(clean);
 
         const actions = [
           { type: 'lookAtLote', loteId: lote.id, hfov: hfov },
-          { type: 'highlightLotes', loteIds: [lote.id], color: 'rgba(0, 255, 128, 0.65)' },
-          { type: 'openLotePanel', loteId: lote.id }
+          { type: 'highlightLotes', loteIds: [lote.id], color: 'rgba(0, 255, 128, 0.65)' }
         ];
+        if (pideFicha) {
+          _pendingLotePanelId = null;
+          actions.push({ type: 'openLotePanel', loteId: lote.id, confirmed: true });
+        } else {
+          _pendingLotePanelId = lote.id;
+        }
         if (pideFotos) actions.push({ type: 'openGallery', loteId: lote.id });
         if (pidePdf) actions.push({ type: 'downloadPDF', loteId: lote.id });
         if (pideFin) actions.push({ type: 'openFinanceWidget', loteId: lote.id });
 
         return {
-          text: _formatLoteSalesPitch(lote, { fotos: pideFotos, pdf: pidePdf, fin: pideFin }),
+          text: _formatLoteSalesPitch(lote, {
+            fotos: pideFotos,
+            pdf: pidePdf,
+            fin: pideFin,
+            askPanel: !pideFicha
+          }),
           actions: actions
         };
       }
@@ -5215,35 +5865,41 @@
 
     let lead = isG
       ? `¡Claro${nameCap}! Te dejé el <b>Lote ${num}</b> en pantalla`
-      : `Entendido${nameCap}. Enfoco el <b>Lote ${num}</b> y abro su ficha`;
+      : `Entendido${nameCap}. Enfoco el <b>Lote ${num}</b> en el 360°`;
     lead += ` · <b>${estado}</b>.`;
 
     const bits = [];
     if (dims) bits.push(`<b>${dims}</b>`);
-    if (uf) bits.push(`<b>${uf}</b>${clpStr ? ' <span style="opacity:.75">(~' + clpStr + ')</span>' : ''}`);
+    if (uf) bits.push(`<b>${uf}</b>${clpStr ? ' <span class="kpk-chat-muted">(~' + clpStr + ')</span>' : ''}`);
     const meta = bits.length ? `<br>${bits.join(' · ')}` : '';
 
     const tagsLine = tags.length
-      ? `<br><span style="opacity:.9">${tags.map((t) => '#' + t).join(' · ')}</span>`
+      ? `<br><span class="kpk-chat-tags">${tags.map((t) => '#' + t).join(' · ')}</span>`
       : '';
 
     let fotosNote = '';
     if (flags.fotos) {
       fotosNote = nFotos
         ? `<br>Galería con <b>${nFotos}</b> foto${nFotos === 1 ? '' : 's'} abierta.`
-        : `<br>Este lote aún no tiene fotos cargadas; la ficha comercial sí está a la vista.`;
+        : `<br>Este lote aún no tiene fotos cargadas.`;
     } else if (!nFotos) {
       fotosNote = isG
-        ? `<br>Aún sin fotos en galería, pero la ficha ya muestra superficie, valor y detalles.`
-        : `<br>Sin galería aún; ficha con datos comerciales abierta.`;
+        ? `<br>Aún sin fotos en galería; te resumo lo esencial aquí.`
+        : `<br>Sin galería aún; datos comerciales resumidos abajo.`;
     }
 
     let cta = '<br>';
     if (flags.fin) cta += 'Simulador de financiamiento listo. ';
     if (flags.pdf) cta += 'Generando ficha PDF. ';
-    cta += isG
-      ? '¿Seguimos con financiamiento, agendar visita o miramos otro lote?'
-      : '¿Financiamiento, agendar visita u otro lote?';
+    if (flags.askPanel !== false) {
+      cta += isG
+        ? '¿Quieres que te abra la <b>tarjeta informativa</b> del lote?'
+        : '¿Desea que abra la <b>tarjeta informativa</b> del lote?';
+    } else {
+      cta += isG
+        ? '¿Seguimos con financiamiento, agendar visita o miramos otro lote?'
+        : '¿Financiamiento, agendar visita u otro lote?';
+    }
 
     return lead + meta + tagsLine + fotosNote + cta;
   }
@@ -5304,9 +5960,21 @@
       return '\u0000ATT' + (blocks.length - 1) + '\u0000';
     });
     work = _escapeHtml(work);
+    // Etiquetas tipográficas + saltos
     work = work
       .replace(/&lt;(\/?)(b|strong|i|em)&gt;/gi, '<$1$2>')
       .replace(/&lt;br\s*\/?&gt;/gi, '<br>');
+    // Spans premium seguros (opacidad inline o clases whitelisteadas)
+    work = work
+      .replace(
+        /&lt;span\s+style=&quot;opacity:\s*(\.?\d+(?:\.\d+)?)&quot;\s*&gt;/gi,
+        '<span class="kpk-chat-dim" style="opacity:$1">'
+      )
+      .replace(
+        /&lt;span\s+class=&quot;(kpk-chat-(?:muted|tags|dim))&quot;\s*&gt;/gi,
+        '<span class="$1">'
+      )
+      .replace(/&lt;\/span&gt;/gi, '</span>');
     work = work.replace(/\u0000ATT(\d+)\u0000/g, (_, i) => blocks[Number(i)] || '');
     return work;
   }
@@ -5315,30 +5983,20 @@
     // ── En móvil: redirigir respuestas del asistente a la burbuja popup ──────
     const isMobileDevice = window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     if (isMobileDevice && role === 'system') {
+      // Onboarding compacto: actualizar texto sin expandir
+      if (_preferMinimalBubble) {
+        _appendToLogOnly(text, role);
+        const popup = document.getElementById('kpk-mobile-ai-bubble-popup');
+        const pText = popup && popup.querySelector('#kpk-mbp-text');
+        if (pText) pText.textContent = String(text || '').replace(/<[^>]+>/g, ' ').trim();
+        _forceMobileBubbleMinimal();
+        return;
+      }
       showMobileBubblePopup(text, true);
       return;
     }
 
-    const msg = document.createElement('div');
-    msg.className = `kpk-ai-msg msg-${role}`;
-
-    const txtNode = document.createElement('div');
-    txtNode.className = 'kpk-ai-msg-text';
-    // Permitir <b>/<br> y adjuntos propios; nunca textContent crudo con tags
-    txtNode.innerHTML = _formatChatHtml(text);
-    msg.appendChild(txtNode);
-
-    const timeNode = document.createElement('span');
-    timeNode.className = 'kpk-ai-msg-time';
-    const now = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
-    timeNode.textContent = pad(now.getHours()) + ':' + pad(now.getMinutes());
-    msg.appendChild(timeNode);
-
-    if (_log) {
-      _log.appendChild(msg);
-      _log.scrollTop = _log.scrollHeight;
-    }
+    _appendToLogOnly(text, role);
   }
 
   function showTypingIndicator() {
@@ -5460,10 +6118,11 @@ TONO COQUETO-ALEGRE (con clase, nunca vulgar):
 - Cierra SIEMPRE con pregunta de acción de venta (tour, ficha, WhatsApp, reserva, comparar precios).
 
 ACCIONES VISUALES (vende con la pantalla):
-- Hablar de un lote → SIEMPRE lookAtLote + openLotePanel + highlightLotes (reemplaza cualquier ficha anterior). Resume en el chat: superficie, precio, estado y tags.
+- Hablar de un lote → SIEMPRE lookAtLote + highlightLotes. Resume en el chat: superficie, precio, estado y tags.
+- NO abras openLotePanel automáticamente. Pregunta: "¿Quieres que te abra la tarjeta informativa?" y SOLO si el cliente dice sí usa {"type":"openLotePanel","loteId":"ID","confirmed":true}.
 - Si cambias a turismo/clima/agenda: NO envíes openLotePanel (el sistema cierra la ficha).
 - Precios/comparar → showPriceComparison. Stats → showStats. Tour → startAutoTour. Disponibles → highlightAvailable.
-- Mapa/servicios → openMapWidget / focusNearbyPOI. Clima → openWeatherWidget. Fotos → openGallery (+ ficha del lote).
+- Mapa/servicios → openMapWidget / focusNearbyPOI. Clima → openWeatherWidget. Fotos → openGallery.
 - Cuando ejecutes acción: "¡Listo! Ya te dejé el lote en pantalla… ¿lo sentiste tuyo o no? 😊"
 
 PRONUNCIACIÓN / TTS (Dalia):
@@ -5480,7 +6139,7 @@ Estilo de venta (OBLIGATORIO):
 
 Estrategia Comercial:
 - Plusvalía, Rol Propio, SAG, conectividad del sector ${envData.mainSector}: véndelo en una frase potente, no en un ensayo.
-- Acciones visuales al instante: al hablar de un lote → lookAtLote + openLotePanel + highlight (reemplaza ficha previa) y resume datos; showStats / startAutoTour cuando aporte.
+- Acciones visuales al instante: al hablar de un lote → lookAtLote + highlight y resume datos; NO abras openLotePanel hasta que el cliente diga que sí quiere la tarjeta informativa (entonces openLotePanel con confirmed:true). showStats / startAutoTour cuando aporte.
 - Si el tema cambia a turismo/clima/agenda: no envíes openLotePanel.
 - Si hay interés: explica la reserva en Chile en dos frases y pide el clip (📎) para Cédula/comprobante.
 
@@ -5521,7 +6180,7 @@ REQUISITOS LEGALES DE RESERVA Y COMPRA EN CHILE:
 Directriz de Reserva: Cuando un cliente muestre interés firme en reservar o comprar, explícale brevemente la certeza jurídica (SAG, Rol propio), indícale los documentos requeridos en Chile (Nombre, RUT, etc.), y sugiérele proactivamente subir su carnet o comprobante mediante el botón Clip (📎) del chat para agilizar el trámite.
 
 REGLA STRICTA DE HERRAMIENTA CERCANOS Y LOTES:
-- NUNCA abras la herramienta de Cercanos ("openNearbyTab" o "openMapWidget") cuando el usuario pida ver, acercar o enfocar un lote (ejemplo: "acerca el lote 10", "muéstrame el lote 5", "ver el lote 12"). Ante cualquier petición sobre un lote específico, ejecuta SIEMPRE {"type":"lookAtLote"} + {"type":"openLotePanel"} + {"type":"highlightLotes"} del mismo ID, y describe superficie/precio/características en el texto.
+- NUNCA abras la herramienta de Cercanos ("openNearbyTab" o "openMapWidget") cuando el usuario pida ver, acercar o enfocar un lote (ejemplo: "acerca el lote 10", "muéstrame el lote 5", "ver el lote 12"). Ante cualquier petición sobre un lote específico, ejecuta SIEMPRE {"type":"lookAtLote"} + {"type":"highlightLotes"} del mismo ID, describe superficie/precio/características en el texto, y PREGUNTA si quiere la tarjeta informativa. NO uses openLotePanel hasta que diga sí (entonces {"type":"openLotePanel","loteId":"ID","confirmed":true}).
 - SOLO ejecuta la herramienta de Cercanos ("openNearbyTab" o "openMapWidget") si el usuario pregunta EXPLICITAMENTE sobre escuelas, colegios, postas, hospitales, carabineros, comisarías, almacenes o la ciudad más cercana. En cualquier otro caso, responde sobre el lote o menciona los servicios cercanos conversacionalmente sin abrir widgets automáticamente.
 
 GUÍA COMERCIAL:
@@ -5541,6 +6200,8 @@ ${lotesCompactJson}
 LOTE ACTUALMENTE EN FOCO (CONTEXTO ACTIVO):
 ${activeLoteJson}
 REGLA CRÍTICA DE CONTEXTO: Si el usuario pregunta algo sin mencionar un lote explícito (ej: "¿cuánto vale?", "¿tiene árboles?", "muéstrame las fotos"), responde SIEMPRE en referencia al LOTE EN FOCO indicado arriba. Cambia de contexto solo si menciona explícitamente otro número de lote.
+
+${getExecMemorySnapshot()}
 
 COORDENADAS DE ORIGEN DEL PROYECTO (DRONE):
 ${droneOriginJson}
@@ -5571,36 +6232,55 @@ REGLAS TURISMO (ESTRICTAS):
 6. Prioriza siempre lugares del entorno del proyecto (radio ~320 km), ordenados por distancia.
 
 ACCIONES DISPONIBLES (úsalas con criterio y siempre en el JSON de respuesta):
-- {"type": "lookAtLote", "loteId": "ID", "hfov": 50}: Mueve la cámara al lote. hfov entre 30 (zoom) y 110 (gran angular). SIEMPRE con openLotePanel al hablar de un lote concreto.
-- {"type": "openLotePanel", "loteId": "ID"}: Abre/reemplaza la ficha comercial del lote (obligatoria al mencionar un lote). Incluye datos, tags y CTAs.
+- {"type": "lookAtLote", "loteId": "ID", "hfov": 50}: Mueve la cámara al lote. hfov entre 30 (zoom) y 110 (gran angular). Al hablar de un lote concreto usa lookAtLote + highlightLotes.
+- {"type": "openLotePanel", "loteId": "ID", "confirmed": true}: Abre la ficha comercial SOLO si el cliente aceptó ver la tarjeta informativa (sí / dale / ábrela). Nunca la abras de entrada.
 - {"type": "highlightLotes", "loteIds": ["ID1","ID2"], "color": "rgba(r,g,b,a)"}: Resalta lotes en el plano SVG.
 - {"type": "clearHighlights"}: Quita resaltados del plano.
 - {"type": "submitLead", "name": "Nombre", "email": "correo", "phone": "fono", "loteId": "ID", "notes": ""}: Envía solicitud de reserva con datos del cliente.
 - {"type": "openNearbyTab"}: Abre pestaña Cercanos mostrando el radar de POIs en el dock.
 - {"type": "filterNearby", "category": "salud|educacion|seguridad|compras|servicios"}: Abre dock Cercanos y activa el filtro de la categoría indicada.
+- {"type": "setBuyerTab", "tab": "lotes|lugares|mapa"}: Abre el dock informativo en esa pestaña.
+- {"type": "expandBuyerDock"} / {"type": "collapseBuyerDock"}: Despliega o minimiza el dock.
+- {"type": "searchNearby"}: Dispara búsqueda OSM de lugares cercanos.
+- {"type": "setNearbyRadius", "radiusKm": 10, "category": "opcional"}: Radio del radar + filtro opcional.
 - {"type": "focusNearbyPOI", "poiName": "nombre parcial del POI"}: Rota la cámara 360° hacia ese POI y abre el mapa flotante con su ruta.
+- {"type": "focusPlace", "query": "Puerto Montt", "openMap": true, "openPin": true}: ORIENTA a un lugar (pin horizonte/POI/turismo): cámara + brújula + pin + mapa. ÚSALA para "¿hacia dónde queda X?", "señala Puerto Montt", etc.
+- {"type": "pointCompass", "bearing": 125}: Pulsa la brújula en un rumbo (grados).
+- {"type": "spotlightPin", "query": "nombre o id"}: Trae un pin al frente/expandido sin mapa.
+- {"type": "lookAtYaw", "yaw": 90, "pitch": 0, "hfov": 75}: Control crudo de cámara.
 - {"type": "openMapWidget", "lat": -41.87585, "lng": -72.748294, "title": "Nombre"}: Abre mapa flotante con ruta y botones Google Maps / Waze.
 - {"type": "closeMapWidget"}: Cierra el mapa flotante.
-- {"type": "openWeatherWidget"}: Muestra el widget meteorológico con clima en tiempo real del proyecto. ÚSALA cuando pregunten por el clima, temperatura, lluvia, viento o condiciones del día.
-- {"type": "openGallery", "loteId": "ID_opcional"}: Abre la galería de fotos del lote en foco (o del lote indicado). ÚSALA cuando pidan fotos, imágenes o galería.
-- {"type": "startAutoTour"}: Inicia el tour cinematográfico automático que recorre todos los lotes con la cámara 360°. ÚSALA cuando pidan un tour, paseo, recorrido o ver todo.
-- {"type": "stopAutoTour"}: Detiene el tour automático.
-- {"type": "showStats"}: Muestra widget flotante con estadísticas del proyecto (total lotes, disponibles, precios, superficies). ÚSALA cuando pidan cuántos lotes hay, resumen, o estadísticas.
-- {"type": "showPriceComparison"}: Muestra tabla comparativa de precios ordenada de menor a mayor. ÚSALA cuando pidan comparar precios, el más barato, o lista de precios.
-- {"type": "highlightAvailable"}: Resalta todos los lotes disponibles en verde en el plano 360°. ÚSALA cuando pregunten cuáles están disponibles o a la venta.
-- {"type": "downloadPDF", "loteId": "ID_opcional"}: Genera y descarga inmediatamente una ficha comercial en PDF del lote indicado (o en foco). ÚSALA cuando pidan PDFs, folletos, fichas para descargar, cotizaciones o descargables.
-- {"type": "openCalendarWidget", "loteId": "ID_opcional", "date": "YYYY-MM-DD", "time": "HH:MM", "name": "", "email": "", "phone": ""}: Abre la agenda de visita (glass). Incluye date/time/datos si el cliente ya los dijo.
-- {"type": "fillCalendarVisit", "date": "YYYY-MM-DD", "time": "HH:MM", "name": "", "email": "", "phone": "", "loteId": "ID_opcional"}: Rellena la agenda abierta con lo que diga el chat (mañana, 12:00, nombre, correo, WhatsApp).
-- {"type": "confirmCalendarVisit"}: Confirma la visita y envía la solicitud al equipo (correo). NO abras WhatsApp al visitante. ÚSALA cuando diga confirmar/enviar/listo y haya día+hora+nombre+email+fono.
-- {"type": "closeCalendarWidget"}: Cierra la agenda.
-- {"type": "offerTourism", "category": "termas|trekking|rafting|lagos|pueblos|nieve|cultura|nearest"}: Ofrece un plan turístico (sin abrir widget).
-- {"type": "confirmTourismOffer"}: Abre el widget tras el sí del cliente.
-- {"type": "openTourismWidget", "poiId": "petrohue-saltos", "confirmed": true}: Abre widget turismo de un POI del catálogo (solo con confirmed true).
-- {"type": "closeTourismWidget"}: Cierra el widget de turismo.
+- {"type": "openWeatherWidget"}: Expande el widget meteorológico. ÚSALA cuando pregunten por clima.
+- {"type": "closeWeatherWidget"}: Colapsa el clima.
+- {"type": "openGallery", "loteId": "ID_opcional"}: Galería de fotos del lote.
+- {"type": "closeGallery"}: Cierra la galería.
+- {"type": "closeLotePanel"}: Cierra la tarjeta informativa del lote.
+- {"type": "closeFinanceWidget"}: Cierra el simulador.
+- {"type": "closeAllWidgets"}: Limpia la escena (cierra todo). ÚSALA antes de un foco importante si hay ruido visual.
+- {"type": "stageScene", "closeOthers": true, "actions": [ ... ]}: Limpia y encadena sub-acciones.
+- {"type": "startAutoTour"} / {"type": "stopAutoTour"}: Tour cinematográfico de lotes.
+- {"type": "showStats"}: Estadísticas del proyecto.
+- {"type": "showPriceComparison"}: Comparador de precios.
+- {"type": "highlightAvailable"}: Resalta lotes disponibles.
+- {"type": "downloadPDF", "loteId": "ID_opcional"}: Ficha PDF.
+- {"type": "openCalendarWidget", "loteId": "ID_opcional", "date": "YYYY-MM-DD", "time": "HH:MM", "name": "", "email": "", "phone": ""}: Agenda de visita.
+- {"type": "fillCalendarVisit", ...} / {"type": "confirmCalendarVisit"} / {"type": "closeCalendarWidget"}
+- {"type": "openFinanceWidget", "loteId": "ID_opcional"}: Simulador de financiamiento.
+- {"type": "offerTourism", "category": "termas|trekking|rafting|lagos|pueblos|nieve|cultura|nearest"}: Ofrece turismo (sin abrir widget).
+- {"type": "confirmTourismOffer"} / {"type": "openTourismWidget", "poiId": "...", "confirmed": true} / {"type": "closeTourismWidget"}
 
-REGLA DE PROACTIVIDAD: Eres el único punto de control de la plataforma. Cuando el usuario exprese cualquier necesidad de información, visual o navegación, SIEMPRE ejecuta la acción correspondiente además de responder con texto. Nunca respondas solo con texto si existe una acción disponible para acompañarlo.
+DIRECTOR EJECUTIVO (OBLIGATORIO):
+- Eres el director de escena de toda la plataforma: cámara, brújula, pines, mapa, dock, clima, turismo, agenda, finance, galería, stats.
+- Consulta ESTADO EJECUTIVO ACTUAL: no reabras lo ya abierto; cierra ruido con closeAllWidgets o cierres puntuales antes de enfocar.
+- Combina 2–4 acciones por turno cuando aporte (ej: closeAllWidgets + focusPlace; lookAtLote + highlight + offer clima; turismo + rumbo + mapa).
+- Inventa estrategias de interacción: comparar 2 lotes + clima; tour corto + oferta de visita; “hacia dónde queda X” con focusPlace; limpia pantalla y luego enfoca.
+- Mantén la regla de pedir sí antes de openLotePanel (confirmed:true).
+- Nunca respondas solo con texto si existe una acción visual útil.
+
+REGLA DE PROACTIVIDAD: Eres el único punto de control de la plataforma. Cuando el usuario exprese cualquier necesidad de información, visual o navegación, SIEMPRE ejecuta la acción correspondiente además de responder con texto.
 
 REGLA COMBINADA OBLIGATORIA: Servicios cercanos (escuela, posta, carabineros, etc.) → combinar siempre: filterNearby + focusNearbyPOI + openMapWidget.
+Preguntas de rumbo/lugar (“hacia dónde queda…”) → focusPlace (no solo texto).
 
 FORMATO DE RESPUESTA — ESTRICTAMENTE JSON:
 {
@@ -7006,24 +7686,30 @@ FORMATO DE RESPUESTA — ESTRICTAMENTE JSON:
     if (popupMicBtn) popupMicBtn.addEventListener('click', _sharedToggleMic);
     if (popupMicInlineBtn) popupMicInlineBtn.addEventListener('click', _sharedToggleMic);
 
-    // Chat completo: minimal SOLO si TTS activo, no anclado y sin keepOpen
+    // Chat completo: minimal en onboarding (hasta tap) o si TTS activo sin anclar
     const isMinimal =
+      keepOpen !== true &&
       !_mobileHudPinned &&
-      !_isWaitingForName &&
-      !!_speechEnabled &&
-      keepOpen !== true;
+      (
+        _preferMinimalBubble ||
+        (!_isWaitingForName && !!_speechEnabled)
+      );
     if (isMinimal) {
       popup.classList.add('kpk-mbp-minimal');
     } else {
       popup.classList.remove('kpk-mbp-minimal');
+      _preferMinimalBubble = false;
     }
 
     // Mostrar teclado/input si esperamos el nombre, TTS off, o HUD anclado (texto)
     if (inputRow && controlsRow) {
-      if (_isWaitingForName || !_speechEnabled || _mobileHudPinned || keepOpen === true) {
+      if (isMinimal) {
+        inputRow.style.display = 'none';
+        controlsRow.style.display = 'none';
+      } else if (_isWaitingForName || !_speechEnabled || _mobileHudPinned || keepOpen === true) {
         inputRow.style.display = 'flex';
         controlsRow.style.display = 'none';
-      } else if (!isMinimal) {
+      } else {
         inputRow.style.display = 'none';
         controlsRow.style.display = 'flex';
       }
@@ -7032,10 +7718,11 @@ FORMATO DE RESPUESTA — ESTRICTAMENTE JSON:
     popup.style.display = 'flex';
     setTimeout(() => {
       popup.classList.add('is-visible');
-      if (_isWaitingForName || (!_speechEnabled && keepOpen)) {
+      if (!isMinimal && (_isWaitingForName || (!_speechEnabled && keepOpen))) {
         const inp = popup.querySelector('#kpk-mbp-text-input');
         if (inp) try { inp.focus(); } catch (e) {}
       }
+      if (isMinimal) _forceMobileBubbleMinimal();
       try {
         if (!_actionChipsActive) _updateSuggestiveChips();
       } catch (e) {}
@@ -7078,6 +7765,7 @@ FORMATO DE RESPUESTA — ESTRICTAMENTE JSON:
   function expandMobileBubblePopup() {
     const popup = document.getElementById('kpk-mobile-ai-bubble-popup');
     if (popup) {
+      _preferMinimalBubble = false;
       _mobileHudPinned = true;
       if (_bubblePopupTimeout) clearTimeout(_bubblePopupTimeout);
       popup.classList.remove('kpk-mbp-minimal');
@@ -7094,6 +7782,8 @@ FORMATO DE RESPUESTA — ESTRICTAMENTE JSON:
         }
       }
       _updateSuggestiveChips();
+      // Primer contacto con la burbuja → hablar saludo
+      _triggerWelcomeGreeting();
     }
   }
 

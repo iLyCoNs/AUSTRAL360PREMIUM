@@ -87,12 +87,17 @@
     const geo = (window.FerrariGeo && window.FerrariGeo.toJSON)
       ? window.FerrariGeo.toJSON()
       : { version: 1, droneOrigin: null, northOffset: 0, pins: [] };
-    return {
+    const tone = (window.FerrariTone && window.FerrariTone.toJSON)
+      ? window.FerrariTone.toJSON()
+      : null;
+    const payload = {
       version: 1,
       updatedAt: Date.now(),
       lotes: window.allDrawnLines || [],
       geo
     };
+    if (tone) payload.tone = tone;
+    return payload;
   }
 
   async function _putGitHubJson(token, OWNER, REPO, BRANCH, path, obj, message) {
@@ -204,6 +209,9 @@
           if (pack.geo && window.FerrariGeo) {
             window.FerrariGeo.fromJSON(pack.geo);
             window.FerrariGeo.saveLocal();
+          }
+          if (pack.tone && window.FerrariTone && window.FerrariTone.fromJSON) {
+            window.FerrariTone.fromJSON(pack.tone);
           }
           showToast(`✓ Cargado datos.json local (${pack.lotes.length})`, 'success');
           return;
@@ -356,6 +364,9 @@
             window.FerrariGeo.fromJSON(datos.geo);
             window.FerrariGeo.saveLocal();
           }
+        }
+        if (datos.tone && window.FerrariTone && window.FerrariTone.fromJSON) {
+          window.FerrariTone.fromJSON(datos.tone);
         }
         console.log('[Ferrari/Persist] datos.json cargado:', datos.lotes.length, 'lotes ·',
           (datos.geo && datos.geo.pins ? datos.geo.pins.length : 0), 'pins',

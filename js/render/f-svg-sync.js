@@ -97,6 +97,20 @@
           window.FerrariAddPin.injectPin(line.id);
         }
       });
+
+      // Glow futurista en vértices al pasar el cursor / pointer sobre el lote
+      g.addEventListener('pointerenter', () => {
+        g.classList.add('is-pointer');
+        if (window.FerrariSVGPaths && window.FerrariSVGPaths.setHoveredLote) {
+          window.FerrariSVGPaths.setHoveredLote(line.id);
+        }
+      });
+      g.addEventListener('pointerleave', () => {
+        g.classList.remove('is-pointer');
+        if (window.FerrariSVGPaths && window.FerrariSVGPaths.setHoveredLote) {
+          window.FerrariSVGPaths.setHoveredLote(null);
+        }
+      });
     }
 
     // ─── 2. Clases base ────────────────────────────────────────────────

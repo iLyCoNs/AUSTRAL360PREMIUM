@@ -34,8 +34,20 @@
     const camDirty = window.FerrariCamera.checkCameraDirty();
     const dataDirty = _dataDirty;
 
+    // Idle autorotate deja camDirty=true casi siempre. En phone/tablet
+    // bajamos overlays pesados a ~30fps para no pelear con WebGL.
+    // Solo si Pannellum está realmente en autoRotate (no durante drag del usuario).
+    const isNarrow = typeof window !== 'undefined' && window.innerWidth < 900;
+    let autoSpin = false;
+    try {
+      const cfg = window.Ferrari && window.Ferrari.viewer && window.Ferrari.viewer.getConfig &&
+        window.Ferrari.viewer.getConfig();
+      autoSpin = !!(cfg && cfg.autoRotate);
+    } catch (e) { autoSpin = false; }
+    const heavyOk = !isNarrow || !autoSpin || (_frameCount % 2 === 0);
+
     // 2. Si cámara cambió O datos cambiaron (ej: slider) → recalcular todos los paths SVG
-    if (camDirty || dataDirty) {
+    if ((camDirty || dataDirty) && heavyOk) {
       if (window.FerrariSVGPaths && window.FerrariSVGPaths.updateSVGPaths) {
         window.FerrariSVGPaths.updateSVGPaths();
       }
@@ -69,16 +81,23 @@
       window.FerrariEdit.isDragging &&
       window.FerrariEdit.isDragging();
 
-    if ((camDirty || dataDirty) && !editingVerts) {
+    if ((camDirty || dataDirty) && !editingVerts && heavyOk) {
       if (window.FerrariCompass && window.FerrariCompass.refresh) {
         window.FerrariCompass.refresh();
       }
     }
     if (window.FerrariGeoPins && window.FerrariGeoPins.update && !editingVerts) {
-      window.FerrariGeoPins.update();
+      const geoDragging = window.FerrariGeoPins.isDragging && window.FerrariGeoPins.isDragging();
+      const wantGeo = !!(camDirty || dataDirty || geoDragging);
+      // Mismo throttle en idle móvil; drag de pin siempre al frame
+      if (wantGeo && (geoDragging || heavyOk)) {
+        window.FerrariGeoPins.update(true);
+      } else if (!wantGeo) {
+        window.FerrariGeoPins.update(false);
+      }
     }
-    // 4c. Smart Pins HTML overlay — reposicionamiento por GPU compositing (cero repintado SVG)
-    if (window.FerrariSmartPins && !editingVerts) {
+    // 4c. Smart Pins — SOLO si cámara/datos cambiaron (antes: cada frame = lag móvil)
+    if (window.FerrariSmartPins && !editingVerts && (camDirty || dataDirty) && heavyOk) {
       window.FerrariSmartPins.update();
     }
 

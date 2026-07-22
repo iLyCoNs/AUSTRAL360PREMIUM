@@ -214,8 +214,50 @@
       negocio:       { label: 'Negocio',         emoji: '🏷️' },
       bencinera:     { label: 'Bencinera',       emoji: '⛽' },
       otro:          { label: 'Otro',            emoji: '📍' }
+    },
+    amenidad: {
+      laguna: { label: 'Laguna', emoji: '◆' },
+      lago: { label: 'Lago', emoji: '◆' },
+      estero: { label: 'Estero', emoji: '◆' },
+      cascada: { label: 'Cascada', emoji: '◆' },
+      playa: { label: 'Playa', emoji: '◆' },
+      muelle: { label: 'Muelle', emoji: '◆' },
+      embarcadero: { label: 'Embarcadero', emoji: '◆' },
+      boya: { label: 'Boya', emoji: '◆' },
+      embarcacion: { label: 'Embarcaciones', emoji: '◆' },
+      kayak: { label: 'Kayak', emoji: '◆' },
+      pesca: { label: 'Pesca', emoji: '◆' },
+      club_nautico: { label: 'Club náutico', emoji: '◆' },
+      bosque: { label: 'Bosque', emoji: '◆' },
+      sendero: { label: 'Sendero', emoji: '◆' },
+      mirador: { label: 'Mirador', emoji: '◆' },
+      fauna: { label: 'Fauna', emoji: '◆' },
+      humedal: { label: 'Humedal', emoji: '◆' },
+      reserva: { label: 'Reserva', emoji: '◆' },
+      caballos: { label: 'Caballos', emoji: '◆' },
+      bike: { label: 'Bicicleta', emoji: '◆' },
+      picnic: { label: 'Picnic', emoji: '◆' },
+      fogon: { label: 'Fogón', emoji: '◆' },
+      camping: { label: 'Camping', emoji: '◆' },
+      trekking: { label: 'Trekking', emoji: '◆' },
+      plaza: { label: 'Plaza', emoji: '◆' },
+      clubhouse: { label: 'Clubhouse', emoji: '◆' },
+      cancha: { label: 'Cancha', emoji: '◆' },
+      quincho: { label: 'Quincho', emoji: '◆' },
+      porteria: { label: 'Portería', emoji: '◆' },
+      estacionamiento_interno: { label: 'Estacionamiento', emoji: '◆' },
+      acceso_loteo: { label: 'Acceso loteo', emoji: '◆' },
+      agua_potable: { label: 'Agua potable', emoji: '◆' },
+      energia: { label: 'Energía', emoji: '◆' },
+      senal: { label: 'Señal / WiFi', emoji: '◆' },
+      otro: { label: 'Otro', emoji: '◆' }
     }
   };
+
+  // Merge runtime catalog if loaded first
+  if (window.FerrariAmenitiesCatalog && window.FerrariAmenitiesCatalog.toGeoCategories) {
+    CATEGORIES.amenidad = window.FerrariAmenitiesCatalog.toGeoCategories();
+  }
 
   // ─── Math ─────────────────────────────────────────────────────────
 
@@ -303,16 +345,12 @@
     const routeSec = pin._routeSec != null ? pin._routeSec : pin.routeSec;
     const hasRoute = routeDist != null && routeSec != null;
     const hasAir = pin._distM != null;
-    const srcLabel = 'Ruta';
-    if (hasRoute && hasAir && pin.tipo === 'horizonte') {
-      return `${srcLabel} ${formatDistance(routeDist)} · ${formatEtaSeconds(routeSec)} · aire ≈ ${formatDistance(pin._distM)}`;
-    }
     if (hasRoute) {
-      return `${srcLabel} ${formatDistance(routeDist)} · ${formatEtaSeconds(routeSec)}`;
+      return `Ruta ${formatDistance(routeDist)} · ${formatEtaSeconds(routeSec)}`;
     }
     if (hasAir) {
       const base = `≈ ${formatDistance(pin._distM)} · ${formatEtaMinutes(pin._distM)}`;
-      return pin.tipo === 'horizonte' ? `${base} (línea recta · calculando ruta…)` : base;
+      return pin.tipo === 'horizonte' ? `${base} (calculando ruta…)` : base;
     }
     return '—';
   }

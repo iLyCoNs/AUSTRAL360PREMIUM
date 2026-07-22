@@ -3,11 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- KPK V1 PLAN BÁSICO -->
-<title>KPK Admin — Panel de Administración</title>
+  <title>KPK Admin — Panel de Administración</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@300;400;500;600;700;800&family=Josefin+Sans:wght@400;500;600&family=Montserrat:wght@500;600;700&family=Outfit:wght@400;500;600&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/ferrari.css?v=29">
+  <link rel="stylesheet" href="css/ferrari.css?v=43">
   <link rel="stylesheet" href="css/f-gallery.css">
   <style>
     /* ═══════════════════ VARIABLES Y RESET ═══════════════════ */
@@ -380,7 +379,6 @@
       box-shadow: 0 0 0 3px var(--accent-glow), 0 0 20px rgba(0,180,255,0.06);
     }
     .efield select option { background: #1a1a24; }
-    /* Windows/Chrome: optgroup sale blanco y tapa el texto — forzar tema oscuro */
     .efield select,
     select.kpk-dark-select {
       color-scheme: dark;
@@ -579,6 +577,34 @@
     .brand-logo-add input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
     .brand-logo-add:hover { background: rgba(0,180,255,0.06); border-color: rgba(0,180,255,0.3); box-shadow: 0 0 12px rgba(0,180,255,0.05); }
     .brand-logo-add svg { opacity: 0.9; }
+    .brand-banner-row {
+      display: flex; gap: 14px; align-items: stretch;
+      padding: 12px; border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+    }
+    .brand-banner-thumb {
+      flex: 0 0 min(42%, 220px); min-height: 64px; max-width: 240px;
+      border-radius: 10px; display: grid; place-items: center;
+      background: rgba(0,0,0,0.25);
+      border: 1px dashed rgba(255,255,255,0.14);
+      overflow: hidden; padding: 8px;
+    }
+    .brand-banner-thumb img {
+      max-width: 100%; max-height: 72px; object-fit: contain; display: block;
+    }
+    .brand-banner-thumb .ph { font-size: 11px; color: var(--text-3); }
+    .brand-banner-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+    .brand-banner-meta strong { font-size: 13px; color: #fff; }
+    .brand-banner-meta > span { font-size: 11px; color: var(--text-3); word-break: break-all; }
+    .brand-banner-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .brand-banner-add {
+      position: relative; display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 12px; border-radius: 8px; cursor: pointer;
+      border: 1px dashed rgba(0,180,255,0.35); background: rgba(0,180,255,0.06);
+      color: #9ad8ff; font-size: 12px; font-weight: 600;
+    }
+    .brand-banner-add input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
     .brand-active-row {
       display: flex; align-items: center; gap: 12px;
       padding: 10px 12px; border-radius: 12px;
@@ -979,32 +1005,6 @@
       transform: translateY(-1.5px);
       color: #fff;
     }
-  
-    .kpk-plan-badge {
-      margin: 10px 12px 4px; padding: 8px 12px; border-radius: 10px;
-      font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
-      text-transform: uppercase; text-align: center;
-      background: rgba(0,180,255,0.1); border: 1px solid rgba(0,180,255,0.35); color: #7dd3fc;
-    }
-    .kpk-feat-btn {
-      padding: 12px 10px; border-radius: 10px; cursor: pointer; font-family: inherit;
-      font-size: 12.5px; font-weight: 650; color: rgba(255,255,255,0.55);
-      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
-      transition: all 0.15s ease;
-    }
-    .kpk-feat-btn.is-on {
-      color: #fff; background: rgba(0,180,255,0.22); border-color: rgba(0,180,255,0.55);
-      box-shadow: 0 0 0 1px rgba(0,180,255,0.15) inset;
-    }
-    .kpk-admin-action-btn {
-      padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(0,180,255,0.4);
-      background: rgba(0,180,255,0.15); color: #7dd3fc; font-weight: 700;
-      cursor: pointer; font-family: inherit; font-size: 12.5px;
-    }
-    .kpk-admin-action-btn--ghost {
-      background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.14); color: rgba(255,255,255,0.75);
-    }
-
   </style>
   <!-- Configuración predeterminada y local -->
   <script src="config.js?v=3"></script>
@@ -1102,17 +1102,12 @@
         </button>
         <button type="button" class="sidebar-nav-btn" data-section="identidad" role="tab">
           <span class="sidebar-nav-ico">✦</span>
-          <span class="sidebar-nav-meta"><strong>Identidad</strong><span>Logo · nombre · estilo</span></span>
+          <span class="sidebar-nav-meta"><strong>Identidad</strong><span>Dock título y logo</span></span>
         </button>
         <button type="button" class="sidebar-nav-btn" data-section="contacto" role="tab">
           <span class="sidebar-nav-ico">✉</span>
           <span class="sidebar-nav-meta"><strong>Contacto</strong><span>WhatsApp · FormSubmit · 360°</span></span>
         </button>
-        <button type="button" class="sidebar-nav-btn" data-section="copilot" role="tab">
-          <span class="sidebar-nav-ico">◈</span>
-          <span class="sidebar-nav-meta"><strong>Copiloto IA</strong><span>APIs · voz · módulos</span></span>
-        </button>
-
       </div>
 
       <div class="sidebar-lotes-wrap" id="sidebar-lotes-wrap">
@@ -1140,7 +1135,8 @@
           <span class="brand-pill">Dock superior</span>
         </div>
         <p class="brand-card-sub">
-          Galería de logos, tipografía y skins del dock. APIs y voz viven en la pestaña Copiloto IA.
+          Galería de logos en GitHub, tipografía lujosa y skins minimalistas del dock.
+          Elige, renombra o elimina logos; publica todo con tu token.
         </p>
         <div class="brand-fields">
           <div>
@@ -1161,6 +1157,118 @@
           <div class="efield full">
             <label>Nombre del proyecto / loteo</label>
             <input type="text" id="brand-name" placeholder="Ej: Residencial Los Álamos" maxlength="90" oninput="liveBrandPreview()">
+            <span class="brand-opt-hint" style="margin-top:4px;display:block;font-size:11px;color:var(--text-3);">Se usa en el título de la pestaña. Si subes un banner PNG, ese archivo reemplaza el texto en el dock del 360°.</span>
+          </div>
+
+          <div class="efield full">
+            <div class="brand-opt-label">
+              Banner de título (PNG transparente)
+              <span class="brand-opt-hint">assets/brand/banners/</span>
+            </div>
+            <p class="brand-card-sub" style="margin:0 0 10px;font-size:12px;">
+              Reemplaza el dock de título en el tour 360°: queda <b>solo tu PNG</b> (sin barra/pila de glass), con tamaño ajustable abajo.
+              Ideal: PNG con transparencia. Si configuras un link, al tocar el banner se abre la web oficial.
+            </p>
+            <div class="brand-banner-row" id="brand-banner-row">
+              <div class="brand-banner-thumb" id="brand-banner-thumb"><span class="ph">Sin banner</span></div>
+              <div class="brand-banner-meta">
+                <strong id="brand-banner-name">Ningún banner</strong>
+                <span id="brand-banner-hint">Sube un PNG transparente</span>
+                <div class="brand-banner-actions">
+                  <label class="brand-logo-add brand-banner-add" title="Subir banner PNG">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                    <span>Subir PNG</span>
+                    <input type="file" id="brand-banner-input" accept="image/png,.png" />
+                  </label>
+                  <button type="button" class="btn-ghost" id="btn-brand-banner-clear" onclick="clearTitleBanner()" style="display:none;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:#fff;cursor:pointer;font-family:inherit;font-size:12px;">Quitar banner</button>
+                </div>
+              </div>
+            </div>
+            <div class="efield full" style="margin-top:12px;">
+              <label for="brand-banner-href">Link al hacer clic en el banner (web oficial)</label>
+              <input type="url" id="brand-banner-href" placeholder="https://www.tuproyecto.cl" inputmode="url" autocomplete="url" oninput="liveBrandPreview()">
+              <span class="brand-opt-hint" style="margin-top:4px;display:block;font-size:11px;color:var(--text-3);">Ej: https://www.alercepatagon.cl — se abre en una pestaña nueva desde el 360°.</span>
+            </div>
+            <div class="efield full" style="margin-top:14px;">
+              <label for="brand-banner-scale">Tamaño del banner en el 360°</label>
+              <div style="display:flex;align-items:center;gap:12px;margin-top:6px;">
+                <input type="range" id="brand-banner-scale" min="40" max="220" step="5" value="100" oninput="onBannerScaleInput()" style="flex:1;accent-color:#00b4ff;">
+                <strong id="brand-banner-scale-val" style="min-width:3.2em;font-variant-numeric:tabular-nums;font-size:13px;">100%</strong>
+              </div>
+              <span class="brand-opt-hint" style="margin-top:4px;display:block;font-size:11px;color:var(--text-3);">Solo la foto PNG (sin pila/glass). Ajusta a voluntad y publica identidad.</span>
+            </div>
+          </div>
+
+          <div class="efield full">
+            <label>Proveedor de Inteligencia Artificial (Copiloto)</label>
+            <select id="brand-ai-provider" onchange="onAIProviderChange()" style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; outline: none; font-family: inherit;">
+              <option value="gemini">Google AI Studio (Gemini 1.5 Flash)</option>
+              <option value="groq">Groq API (Llama 3.1 / Gemma 2)</option>
+              <option value="openrouter" selected>OpenRouter API (Mistral 7B · Gratis)</option>
+              <option value="lightning">Lightning.ai (Gemini 3.5 Flash · Gratis 30M)</option>
+            </select>
+          </div>
+
+          <div class="efield full">
+            <label id="lbl-ai-key">API Key del Proveedor Seleccionado</label>
+            <div class="kpk-ai-key-input-container" style="position: relative; display: flex; align-items: center;">
+              <input type="password" id="brand-ai-key" placeholder="Pega tu API Key aquí..." oninput="onAIKeyChange()" style="flex: 1; padding-right: 42px;">
+              <button type="button" id="btn-toggle-ai-key" onclick="toggleAIKeyVisibility()" style="position: absolute; right: 10px; background: none; border: none; color: var(--text-3); cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; padding: 4px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
+            <span class="brand-opt-hint" id="ai-key-hint" style="margin-top: 4px; display: block; font-size: 11px; color: var(--text-3);">Clave de acceso de la IA. Se almacena localmente de forma segura en este navegador.</span>
+          </div>
+
+          <div class="efield full" style="padding:14px;border-radius:12px;border:1px solid rgba(57,255,20,0.25);background:rgba(57,255,20,0.06);">
+            <label style="display:block;margin-bottom:8px;">Salida de voz del copiloto (TTS)</label>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+              <button type="button" id="btn-tts-output-toggle" onclick="toggleCopilotTtsOutput()" style="padding:12px 18px;border-radius:10px;border:1px solid rgba(57,255,20,0.45);background:rgba(57,255,20,0.12);color:#39FF14;font-weight:700;cursor:pointer;font-family:inherit;">
+                Activar voces
+              </button>
+              <span id="tts-output-status" style="font-size:13px;color:var(--text-2);">OFF — chat solo texto</span>
+            </div>
+            <span class="brand-opt-hint" style="margin-top:8px;display:block;font-size:11px;color:var(--text-3);">Por defecto el copiloto <b>no habla</b> (evita voz robótica en GitHub). El micrófono del chat sigue sirviendo para <b>dictar</b>; la IA responde en texto. Cuando tengas API/proxy válidos, pulsa <b>Activar voces</b> y recarga el viewer.</span>
+          </div>
+
+          <div class="efield full">
+            <label>Voz Predeterminada del Copiloto (cuando TTS esté ON)</label>
+            <select id="brand-ai-voice" class="kpk-dark-select" style="width: 100%; padding: 10px; border-radius: 8px; background: #16161e; border: 1px solid rgba(255,255,255,0.1); color: #f0f0f5; outline: none; font-family: inherit;">
+              <option value="jarvis_charon">JARVIS · Charon</option>
+              <option value="auto_gigi" selected>Auto · Gigi / Mia</option>
+              <option value="elevenlabs_gigi">ElevenLabs · Gigi Bella</option>
+              <option value="elevenlabs_daniel">ElevenLabs · Daniel</option>
+              <option value="local_dalia">Gratis · Dalia Neural (proxy local)</option>
+              <option value="stream_gigi">Gratis · Mia MX</option>
+              <option value="stream_lucia">Gratis · Lucía ES</option>
+              <option value="stream_penelope">Gratis · Penelope US</option>
+              <option value="gemini_tts">Otras · Gemini TTS Kore</option>
+              <option value="webspeech">Otras · Web Speech</option>
+            </select>
+            <span class="brand-opt-hint" style="margin-top: 4px; display: block; font-size: 11px; color: var(--text-3);">Solo aplica si la salida TTS está <b>Activada</b>. Para GitHub Pages hace falta puente TTS en VPS (<code>ttsProxyUrl</code>).</span>
+          </div>
+
+          <div class="efield full">
+            <label>API Key de Google Gemini (para Voz JARVIS Charon / Kore)</label>
+            <div class="kpk-ai-key-input-container" style="position: relative; display: flex; align-items: center;">
+              <input type="password" id="brand-gemini-key" placeholder="AIzaSy... pega tu API Key de Gemini para voz aquí" oninput="onGeminiVoiceKeyChange()" style="flex: 1; padding-right: 42px; width: 100%; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; outline: none; font-family: inherit;">
+              <button type="button" id="btn-toggle-gemini-key" onclick="toggleGeminiVoiceKeyVisibility()" style="position: absolute; right: 10px; background: none; border: none; color: var(--text-3); cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; padding: 4px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
+            <span class="brand-opt-hint" style="margin-top: 4px; display: block; font-size: 11px; color: var(--text-3);">Clave necesaria para generar la voz masculina JARVIS Charon o Kore mediante Gemini. Al hacer clic en <b>Guardar en GitHub</b> quedará <b>ofuscada de forma segura (kpk-enc-)</b>.</span>
+          </div>
+
+          <div class="efield full">
+            <label>API Key ElevenLabs (voz Gigi Bella)</label>
+            <input type="password" id="brand-elevenlabs-key" placeholder="xi-... pega tu key aquí" style="width:100%; padding:10px; border-radius:8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; outline:none; font-family:inherit;" oninput="onElevenLabsKeyChange()">
+            <span class="brand-opt-hint" style="margin-top:4px; display:block; font-size:11px; color:var(--text-3);">Si cambias o recargas créditos, se limpia el caché y el copiloto re-sondea al instante.</span>
           </div>
 
           <div>
@@ -1263,7 +1371,7 @@
           <div>
             <div class="brand-opt-label">Vista previa del tour</div>
             <div class="brand-dock-preview" aria-label="Vista previa del dock">
-              <div id="brand-preview-empty" class="brand-dock-preview-empty">Escribe el nombre o elige un logo</div>
+              <div id="brand-preview-empty" class="brand-dock-preview-empty">Escribe el nombre, elige un logo o sube un banner</div>
               <div id="kpk-brand-dock" class="kpk-brand-dock dock-style-crystal" aria-hidden="true" hidden>
                 <div class="kpk-brand-dock__glass">
                   <div id="kpk-brand-logo-wrap" class="kpk-brand-dock__logo-wrap" hidden>
@@ -1272,6 +1380,9 @@
                   <div class="kpk-brand-dock__text">
                     <span id="kpk-brand-name" class="kpk-brand-dock__name" hidden></span>
                   </div>
+                  <a id="kpk-brand-title-banner-link" class="kpk-brand-dock__banner-link" hidden tabindex="-1">
+                    <img id="kpk-brand-title-banner" class="kpk-brand-dock__banner" alt="" hidden>
+                  </a>
                 </div>
               </div>
             </div>
@@ -1281,99 +1392,6 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
             <span id="brand-save-txt">Publicar identidad en GitHub</span>
           </button>
-        </div>
-      </div>
-
-      
-      <!-- ═══ COPILOTO IA (Plan Premium) ═══ -->
-      <div class="brand-card admin-section" id="copilot-card" data-admin-section="copilot" hidden>
-        <div class="brand-card-title">
-          Copiloto IA · Premium
-          <span class="brand-pill" style="background:rgba(0,180,255,0.18);color:#7dd3fc;">Full dinámica</span>
-        </div>
-        <p class="brand-card-sub">
-          Activa o pausa módulos del tour, configura APIs del chatbot y la voz.
-          Los cambios se guardan en <code>brand.json</code> / localStorage al publicar.
-        </p>
-
-        <div class="brand-fields">
-          <div class="efield full" style="padding:14px;border-radius:12px;border:1px solid rgba(0,180,255,0.28);background:rgba(0,180,255,0.06);">
-            <label style="display:block;margin-bottom:10px;">Módulos del tour (ON / OFF)</label>
-            <div class="kpk-feat-grid" id="kpk-feat-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-              <button type="button" class="kpk-feat-btn is-on" data-feat="copilot">Copiloto chat</button>
-              <button type="button" class="kpk-feat-btn is-on" data-feat="voice">Voz TTS</button>
-              <button type="button" class="kpk-feat-btn is-on" data-feat="calendar">Agenda visita</button>
-              <button type="button" class="kpk-feat-btn is-on" data-feat="finance">Financiamiento</button>
-              <button type="button" class="kpk-feat-btn is-on" data-feat="tourism">Turismo</button>
-              <button type="button" class="kpk-feat-btn is-on" data-feat="weather">Clima</button>
-              <button type="button" class="kpk-feat-btn is-on" data-feat="nearby">Cercanos OSM</button>
-              <button type="button" class="kpk-feat-btn is-on" data-feat="mapTab">Minimapa</button>
-            </div>
-            <span class="brand-opt-hint" style="margin-top:8px;display:block;font-size:11px;color:var(--text-3);">Pulsa para activar/desactivar. Luego <b>Publicar identidad</b> o usa «Aplicar en este navegador».</span>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
-              <button type="button" id="btn-feat-apply-local" class="kpk-admin-action-btn">Aplicar en este navegador</button>
-              <button type="button" id="btn-feat-all-on" class="kpk-admin-action-btn kpk-admin-action-btn--ghost">Todo ON</button>
-              <button type="button" id="btn-feat-all-off" class="kpk-admin-action-btn kpk-admin-action-btn--ghost">Solo chat ON</button>
-            </div>
-          </div>
-
-          <div class="efield full">
-            <label>Proveedor de Inteligencia Artificial (Copiloto)</label>
-            <select id="brand-ai-provider" class="kpk-dark-select" onchange="onAIProviderChange()" style="width: 100%; padding: 10px; border-radius: 8px; background: #16161e; border: 1px solid rgba(255,255,255,0.1); color: #f0f0f5; outline: none; font-family: inherit;">
-              <option value="gemini">Google AI Studio (Gemini)</option>
-              <option value="groq">Groq API (Llama / Gemma)</option>
-              <option value="openrouter" selected>OpenRouter API</option>
-              <option value="lightning">Lightning.ai</option>
-            </select>
-          </div>
-
-          <div class="efield full">
-            <label id="lbl-ai-key">API Key del proveedor seleccionado</label>
-            <div class="kpk-ai-key-input-container" style="position: relative; display: flex; align-items: center;">
-              <input type="password" id="brand-ai-key" placeholder="Pega tu API Key aquí..." oninput="onAIKeyChange()" style="flex: 1; padding-right: 42px;">
-              <button type="button" id="btn-toggle-ai-key" onclick="toggleAIKeyVisibility()" style="position: absolute; right: 10px; background: none; border: none; color: var(--text-3); cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; padding: 4px;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-              </button>
-            </div>
-            <span class="brand-opt-hint" id="ai-key-hint" style="margin-top: 4px; display: block; font-size: 11px; color: var(--text-3);">Se guarda localmente y en brand al publicar.</span>
-            <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-              <button type="button" id="btn-test-ai-key" class="kpk-admin-action-btn" onclick="testAIKeyConnection()">Probar conexión IA</button>
-              <span id="ai-test-status" style="font-size:12px;color:var(--text-3);align-self:center;"></span>
-            </div>
-          </div>
-
-          <div class="efield full" style="padding:14px;border-radius:12px;border:1px solid rgba(57,255,20,0.25);background:rgba(57,255,20,0.06);">
-            <label style="display:block;margin-bottom:8px;">Salida de voz del copiloto (TTS)</label>
-            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
-              <button type="button" id="btn-tts-output-toggle" onclick="toggleCopilotTtsOutput()" style="padding:12px 18px;border-radius:10px;border:1px solid rgba(57,255,20,0.45);background:rgba(57,255,20,0.12);color:#39FF14;font-weight:700;cursor:pointer;font-family:inherit;">Activar voces</button>
-              <span id="tts-output-status" style="font-size:13px;color:var(--text-2);">OFF — chat solo texto</span>
-            </div>
-          </div>
-
-          <div class="efield full">
-            <label>Voz predeterminada (cuando TTS esté ON)</label>
-            <select id="brand-ai-voice" class="kpk-dark-select" style="width: 100%; padding: 10px; border-radius: 8px; background: #16161e; border: 1px solid rgba(255,255,255,0.1); color: #f0f0f5; outline: none; font-family: inherit;">
-              <option value="jarvis_charon">JARVIS · Charon</option>
-              <option value="auto_gigi" selected>Auto · Gigi / Mia</option>
-              <option value="elevenlabs_gigi">ElevenLabs · Gigi Bella</option>
-              <option value="elevenlabs_daniel">ElevenLabs · Daniel</option>
-              <option value="local_dalia">Gratis · Dalia Neural</option>
-              <option value="stream_gigi">Gratis · Mia MX</option>
-              <option value="stream_lucia">Gratis · Lucía ES</option>
-              <option value="webspeech">Otras · Web Speech</option>
-            </select>
-          </div>
-
-          <div class="efield full">
-            <label>API Key ElevenLabs</label>
-            <input type="password" id="brand-elevenlabs-key" placeholder="xi-..." style="width:100%; padding:10px; border-radius:8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; outline:none; font-family:inherit;" oninput="onElevenLabsKeyChange()">
-          </div>
-
-          <div class="efield full">
-            <label>URL proxy TTS (opcional · VPS)</label>
-            <input type="url" id="brand-tts-proxy-url" placeholder="https://tu-vps.ejemplo/tts" style="width:100%; padding:10px; border-radius:8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; outline:none; font-family:inherit;">
-            <span class="brand-opt-hint" style="margin-top:4px;display:block;font-size:11px;color:var(--text-3);">Necesario en GitHub Pages para Edge/Dalia sin CORS.</span>
-          </div>
         </div>
       </div>
 
@@ -1611,6 +1629,7 @@ const CFG = {
   DATA_PATH:    'data/datos.json',
   BRAND_PATH:   'data/brand.json',
   LOGO_DIR:     'assets/brand/logos',
+  BANNER_DIR:   'assets/brand/banners',
   BRANCH:       'main',
 };
 
@@ -1635,6 +1654,8 @@ let _adminSection = 'lotes';
 let _brand = { version: 2, projectName: '', logoPath: null, logoId: null, logos: [], font: 'cormorant', dockStyle: 'crystal', mobileSolid: true, hideLoteFill: false, contact: Object.assign({}, CONTACT_DEFAULTS), updatedAt: null };
 let _brandSha = null;
 let _logoPendingMap = {}; // id -> { base64, ext, mime, dataUrl }
+let _titleBannerPending = null; // { base64, dataUrl, ext, mime } | null
+let _titleBannerToDelete = null; // path string | null
 let _logosToDelete = []; // { path, sha? }
 let _brandFont = 'cormorant';
 let _brandStyle = 'crystal';
@@ -2153,6 +2174,37 @@ function onElevenLabsKeyChange() {
   localStorage.removeItem('kpk_el_status_v1');
 }
 
+function onGeminiVoiceKeyChange() {
+  const gemInput = document.getElementById('brand-gemini-key');
+  const val = (gemInput && gemInput.value || '').trim();
+  if (val) {
+    localStorage.setItem('ferrari_ai_key_gemini', val);
+    localStorage.setItem('ferrari_gemini_api_key', val);
+  } else {
+    localStorage.removeItem('ferrari_ai_key_gemini');
+    localStorage.removeItem('ferrari_gemini_api_key');
+  }
+}
+
+function toggleGeminiVoiceKeyVisibility() {
+  const txtKey = document.getElementById('brand-gemini-key');
+  const btn = document.getElementById('btn-toggle-gemini-key');
+  if (!txtKey || !btn) return;
+  const isPassword = txtKey.type === 'password';
+  txtKey.type = isPassword ? 'text' : 'password';
+  btn.innerHTML = isPassword ? `
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+      <line x1="1" y1="1" x2="23" y2="23"></line>
+    </svg>
+  ` : `
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+      <circle cx="12" cy="12" r="3"></circle>
+    </svg>
+  `;
+}
+
 function syncCopilotTtsOutputUI() {
   const on = localStorage.getItem('kpk_tts_output') === '1';
   const btn = document.getElementById('btn-tts-output-toggle');
@@ -2230,7 +2282,13 @@ function _deobfuscateKey(encKey) {
 }
 
 function _brandDefaults() {
-  return { version: 3, projectName: '', logoPath: null, logoId: null, logos: [], font: 'cormorant', dockStyle: 'crystal', mobileSolid: true, hideLoteFill: false, loteFillOnHoverOnly: false, loteHoverColor: 'neon-green', aiProvider: 'openrouter', aiKeys: { openrouter: '', groq: '', gemini: '', lightning: '', elevenlabs: '' }, voiceMode: 'auto_gigi', ttsOutputEnabled: false, contact: Object.assign({}, CONTACT_DEFAULTS), updatedAt: null };
+  return { version: 3, projectName: '', logoPath: null, logoId: null, logos: [], titleBannerPath: null, titleBannerHref: null, titleBannerScale: 100, font: 'cormorant', dockStyle: 'crystal', mobileSolid: true, hideLoteFill: false, loteFillOnHoverOnly: false, loteHoverColor: 'neon-green', aiProvider: 'openrouter', aiKeys: { openrouter: '', groq: '', gemini: '', lightning: '', elevenlabs: '' }, voiceMode: 'auto_gigi', ttsOutputEnabled: false, contact: Object.assign({}, CONTACT_DEFAULTS), updatedAt: null };
+}
+
+function _clampBannerScale(n) {
+  const v = Number(n);
+  if (!isFinite(v)) return 100;
+  return Math.max(40, Math.min(220, Math.round(v)));
 }
 
 function _normalizeBrand(raw) {
@@ -2247,6 +2305,8 @@ function _normalizeBrand(raw) {
   if (b.voiceMode == null) b.voiceMode = 'auto_gigi';
   if (b.ttsOutputEnabled == null) b.ttsOutputEnabled = false;
   if (!b.aiKeys) b.aiKeys = { openrouter: '', groq: '', gemini: '', lightning: '' };
+  b.titleBannerScale = _clampBannerScale(b.titleBannerScale);
+  b.titleBannerHref = _normalizeBannerHref(b.titleBannerHref);
   b.contact = Object.assign({}, CONTACT_DEFAULTS, (raw && raw.contact) || b.contact || {});
   if (b.logoPath && !b.logoId && b.logos.length === 0) {
     b.logoId = 'legacy';
@@ -2266,6 +2326,54 @@ function _newLogoId() {
 function _activeLogo() {
   if (!_brand.logoId || !Array.isArray(_brand.logos)) return null;
   return _brand.logos.find(l => l.id === _brand.logoId) || null;
+}
+
+function _titleBannerSrc() {
+  if (_titleBannerPending && _titleBannerPending.dataUrl) return _titleBannerPending.dataUrl;
+  const path = _brand && _brand.titleBannerPath;
+  if (!path) return null;
+  const bust = _brand.updatedAt ? `?v=${encodeURIComponent(String(_brand.updatedAt))}` : '';
+  if (/^https?:\/\//i.test(path)) return path + bust;
+  return path + bust;
+}
+
+function _normalizeBannerHref(raw) {
+  let s = String(raw || '').trim();
+  if (!s) return null;
+  if (!/^https?:\/\//i.test(s)) s = 'https://' + s;
+  try {
+    const u = new URL(s);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    return u.href;
+  } catch (e) {
+    return null;
+  }
+}
+
+function _readBannerHrefFromForm() {
+  const el = document.getElementById('brand-banner-href');
+  return _normalizeBannerHref(el ? el.value : (_brand && _brand.titleBannerHref));
+}
+
+function updateTitleBannerUI() {
+  const thumb = document.getElementById('brand-banner-thumb');
+  const nameEl = document.getElementById('brand-banner-name');
+  const hintEl = document.getElementById('brand-banner-hint');
+  const clearBtn = document.getElementById('btn-brand-banner-clear');
+  const src = _titleBannerSrc();
+  const path = (_titleBannerPending && 'Pendiente de publicar') || (_brand && _brand.titleBannerPath) || '';
+  if (thumb) {
+    thumb.innerHTML = src
+      ? `<img src="${src}" alt="Banner de título">`
+      : '<span class="ph">Sin banner</span>';
+  }
+  if (nameEl) nameEl.textContent = src ? (_titleBannerPending ? 'Nuevo banner PNG' : 'Banner activo') : 'Ningún banner';
+  if (hintEl) {
+    hintEl.textContent = src
+      ? (path || 'PNG transparente listo')
+      : 'Sube un PNG transparente';
+  }
+  if (clearBtn) clearBtn.style.display = src ? '' : 'none';
 }
 
 function _brandLogoSrc(brand) {
@@ -2397,20 +2505,37 @@ function pendingLabel(logo) {
   return _logoPendingMap[logo.id] ? 'Nuevo · ' : '';
 }
 
+function onBannerScaleInput() {
+  const el = document.getElementById('brand-banner-scale');
+  const val = document.getElementById('brand-banner-scale-val');
+  const pct = _clampBannerScale(el ? el.value : 100);
+  if (el) el.value = String(pct);
+  if (val) val.textContent = pct + '%';
+  _brand.titleBannerScale = pct;
+  liveBrandPreview();
+}
+
 function liveBrandPreview() {
   const name = (document.getElementById('brand-name').value || '').trim();
   const src = _brandLogoSrc(_brand);
+  const bannerSrc = _titleBannerSrc();
   const dock = document.getElementById('kpk-brand-dock');
   const glass = dock && dock.querySelector('.kpk-brand-dock__glass');
   const dockName = document.getElementById('kpk-brand-name');
   const dockLogo = document.getElementById('kpk-brand-logo');
   const dockLogoWrap = document.getElementById('kpk-brand-logo-wrap');
+  const dockBanner = document.getElementById('kpk-brand-title-banner');
+  const dockBannerLink = document.getElementById('kpk-brand-title-banner-link');
   const previewEmpty = document.getElementById('brand-preview-empty');
   const fontMeta = BRAND_FONTS[_brandFont] || BRAND_FONTS.cormorant;
   const mobileSolidEl = document.getElementById('brand-mobile-solid');
   const mobileSolid = mobileSolidEl ? !!mobileSolidEl.checked : true;
+  const bannerHref = _readBannerHrefFromForm();
+  const hasBanner = !!bannerSrc;
   const hasName = name.length > 0;
   const hasLogo = !!src;
+
+  updateTitleBannerUI();
 
   // sync active row thumb
   const active = _activeLogo();
@@ -2439,16 +2564,64 @@ function liveBrandPreview() {
     glass.style.setProperty('--brand-tracking', fontMeta.tracking);
     glass.style.setProperty('--brand-weight', fontMeta.weight);
   }
+  if (dockBanner) {
+    if (hasBanner) {
+      dockBanner.onerror = () => {
+        dockBanner.hidden = true;
+        dockBanner.removeAttribute('src');
+        dock.classList.remove('has-title-banner');
+        if (dockBannerLink) {
+          dockBannerLink.hidden = true;
+          dockBannerLink.classList.remove('is-linked');
+          dockBannerLink.removeAttribute('href');
+        }
+      };
+      dockBanner.src = bannerSrc;
+      dockBanner.alt = hasName ? name : 'Banner del proyecto';
+      dockBanner.hidden = false;
+    } else {
+      dockBanner.hidden = true;
+      dockBanner.removeAttribute('src');
+    }
+  }
+  if (dockBannerLink) {
+    if (hasBanner) {
+      dockBannerLink.hidden = false;
+      if (bannerHref) {
+        dockBannerLink.href = bannerHref;
+        dockBannerLink.target = '_blank';
+        dockBannerLink.rel = 'noopener noreferrer';
+        dockBannerLink.classList.add('is-linked');
+        dockBannerLink.setAttribute('tabindex', '0');
+        dockBannerLink.setAttribute('aria-label', (hasName ? name + ' — ' : '') + 'Abrir sitio web oficial');
+      } else {
+        dockBannerLink.removeAttribute('href');
+        dockBannerLink.removeAttribute('target');
+        dockBannerLink.removeAttribute('rel');
+        dockBannerLink.classList.remove('is-linked');
+        dockBannerLink.setAttribute('tabindex', '-1');
+        dockBannerLink.removeAttribute('aria-label');
+      }
+    } else {
+      dockBannerLink.hidden = true;
+      dockBannerLink.classList.remove('is-linked');
+      dockBannerLink.removeAttribute('href');
+      dockBannerLink.removeAttribute('target');
+      dockBannerLink.removeAttribute('rel');
+      dockBannerLink.setAttribute('tabindex', '-1');
+      dockBannerLink.removeAttribute('aria-label');
+    }
+  }
   if (dockName) {
     dockName.style.fontFamily = fontMeta.family;
     dockName.style.fontWeight = fontMeta.weight;
     dockName.style.letterSpacing = fontMeta.tracking;
     dockName.textContent = hasName ? name : '';
-    dockName.hidden = !hasName;
+    dockName.hidden = hasBanner || !hasName;
   }
 
   if (dockLogo && dockLogoWrap) {
-    if (hasLogo) {
+    if (hasLogo && !hasBanner) {
       dockLogo.onerror = () => {
         dockLogoWrap.hidden = true;
         dock.classList.remove('has-logo');
@@ -2462,17 +2635,26 @@ function liveBrandPreview() {
     }
   }
 
-  dock.classList.toggle('has-logo', hasLogo);
-  dock.classList.toggle('has-name', hasName);
+  dock.classList.toggle('has-title-banner', hasBanner);
+  dock.classList.toggle('has-logo', hasLogo && !hasBanner);
+  dock.classList.toggle('has-name', hasName && !hasBanner);
 
-  if (hasName || hasLogo) {
+  const scaleEl = document.getElementById('brand-banner-scale');
+  const scaleVal = document.getElementById('brand-banner-scale-val');
+  const scalePct = _clampBannerScale(scaleEl ? scaleEl.value : (_brand.titleBannerScale || 100));
+  _brand.titleBannerScale = scalePct;
+  if (scaleEl && String(scaleEl.value) !== String(scalePct)) scaleEl.value = String(scalePct);
+  if (scaleVal) scaleVal.textContent = scalePct + '%';
+  dock.style.setProperty('--kpk-banner-scale', String(scalePct / 100));
+
+  if (hasName || hasLogo || hasBanner) {
     dock.hidden = false;
     dock.classList.add('is-visible');
     dock.setAttribute('aria-hidden', 'false');
     if (previewEmpty) previewEmpty.hidden = true;
   } else {
     dock.hidden = true;
-    dock.classList.remove('is-visible');
+    dock.classList.remove('is-visible', 'has-title-banner');
     dock.setAttribute('aria-hidden', 'true');
     if (previewEmpty) previewEmpty.hidden = false;
   }
@@ -2635,6 +2817,90 @@ async function onBrandLogoSelected(fileList) {
   }
 }
 
+/** Banner de título: PNG ancho con alpha (máx ~1600px de ancho). */
+async function prepareTitleBanner(file) {
+  const ext = _extFromFile(file);
+  if (ext !== 'png' && file.type !== 'image/png') {
+    throw new Error('Solo se acepta PNG transparente');
+  }
+  try {
+    const url = URL.createObjectURL(file);
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error('No se pudo leer el PNG'));
+      i.src = url;
+    });
+    const maxW = 1600;
+    const scale = Math.min(1, maxW / Math.max(1, img.width));
+    const w = Math.max(1, Math.round(img.width * scale));
+    const h = Math.max(1, Math.round(img.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    URL.revokeObjectURL(url);
+    const dataUrl = canvas.toDataURL('image/png');
+    return {
+      base64: dataUrl.slice(dataUrl.indexOf(',') + 1),
+      dataUrl,
+      ext: 'png',
+      mime: 'image/png'
+    };
+  } catch (e) {
+    const raw = await _fileToBase64(file);
+    return {
+      base64: raw.base64,
+      dataUrl: raw.dataUrl,
+      ext: 'png',
+      mime: 'image/png'
+    };
+  }
+}
+
+async function onTitleBannerSelected(fileList) {
+  const file = fileList && fileList[0];
+  if (!file) return;
+  const isPng = file.type === 'image/png' || /\.png$/i.test(file.name || '');
+  if (!isPng) {
+    showToast('El banner debe ser PNG transparente', 'error');
+    return;
+  }
+  if (file.size > 8 * 1024 * 1024) {
+    showToast('Banner demasiado pesado (>8 MB)', 'error');
+    return;
+  }
+  try {
+    const prepared = await prepareTitleBanner(file);
+    // Si había un banner publicado distinto, marcarlo para borrar al publicar
+    if (_brand.titleBannerPath && !_titleBannerPending) {
+      _titleBannerToDelete = _brand.titleBannerPath;
+    }
+    _titleBannerPending = prepared;
+    _brand.titleBannerPath = `${CFG.BANNER_DIR}/title_${Date.now().toString(36)}.png`;
+    liveBrandPreview();
+    showToast('✓ Banner listo. Publica identidad para subirlo al tour 360°.', 'success');
+  } catch (e) {
+    showToast('Error con el banner: ' + e.message, 'error');
+  }
+  const input = document.getElementById('brand-banner-input');
+  if (input) input.value = '';
+}
+
+function clearTitleBanner() {
+  // Si solo había un pendiente que reemplazaba un publicado, conservar el path a borrar.
+  // Si el actual ya estaba publicado (sin pending), marcar ese path.
+  if (!_titleBannerPending && _brand.titleBannerPath) {
+    _titleBannerToDelete = _brand.titleBannerPath;
+  }
+  _titleBannerPending = null;
+  _brand.titleBannerPath = null;
+  liveBrandPreview();
+  showToast('Banner quitado. Publica para aplicar en el tour.', 'success');
+}
+
 function _bindBrandUI() {
   document.getElementById('brand-font-grid')?.addEventListener('click', (e) => {
     const btn = e.target.closest('.brand-font-btn');
@@ -2644,6 +2910,11 @@ function _bindBrandUI() {
     const btn = e.target.closest('.brand-style-btn');
     if (btn) setBrandStyle(btn.dataset.style);
   });
+  const bannerInput = document.getElementById('brand-banner-input');
+  if (bannerInput && !bannerInput._kpkBound) {
+    bannerInput._kpkBound = true;
+    bannerInput.addEventListener('change', () => onTitleBannerSelected(bannerInput.files));
+  }
   renderBrandGallery();
 }
 
@@ -2668,11 +2939,21 @@ async function loadBrandFromGitHub() {
     }
     _logoPendingMap = {};
     _logosToDelete = [];
+    _titleBannerPending = null;
+    _titleBannerToDelete = null;
   } catch (e) {
     showToast('Error cargando identidad: ' + e.message, 'error');
   }
   const nameEl = document.getElementById('brand-name');
   if (nameEl) nameEl.value = _brand.projectName || '';
+  const bannerHrefEl = document.getElementById('brand-banner-href');
+  if (bannerHrefEl) bannerHrefEl.value = _brand.titleBannerHref || '';
+  const bannerScaleEl = document.getElementById('brand-banner-scale');
+  const bannerScaleVal = document.getElementById('brand-banner-scale-val');
+  const bannerScale = _clampBannerScale(_brand.titleBannerScale);
+  _brand.titleBannerScale = bannerScale;
+  if (bannerScaleEl) bannerScaleEl.value = String(bannerScale);
+  if (bannerScaleVal) bannerScaleVal.textContent = bannerScale + '%';
   const solidEl = document.getElementById('brand-mobile-solid');
   if (solidEl) solidEl.checked = _brand.mobileSolid !== false;
   const hideFillEl = document.getElementById('brand-hide-lote-fill');
@@ -2713,6 +2994,15 @@ async function loadBrandFromGitHub() {
       || (_brand.aiKeys && _brand.aiKeys.elevenlabs)
       || '';
     elKeyInput.value = _deobfuscateKey(storedEl || '');
+  }
+  const gemKeyInput = document.getElementById('brand-gemini-key');
+  if (gemKeyInput) {
+    const cfg = window.KPK_CONFIG || {};
+    const storedGem = localStorage.getItem('ferrari_ai_key_gemini')
+      || (_brand.aiKeys && _brand.aiKeys.gemini)
+      || (cfg.aiKeys && cfg.aiKeys.gemini)
+      || '';
+    gemKeyInput.value = _deobfuscateKey(storedGem || '');
   }
   onAIProviderChange();
 
@@ -2817,9 +3107,31 @@ async function saveBrand() {
     }
     _logosToDelete = [];
 
+    // 3) Banner de título PNG
+    let titleBannerPath = _brand.titleBannerPath || null;
+    if (_titleBannerPending) {
+      titleBannerPath = `${CFG.BANNER_DIR}/title_${stamp.toString(36)}.png`;
+      const existingBanner = await _getFileMeta(titleBannerPath);
+      await _putGitHubFile(
+        titleBannerPath,
+        _titleBannerPending.base64,
+        'Admin: banner de título del dock',
+        existingBanner ? existingBanner.sha : null
+      );
+      _titleBannerPending = null;
+    }
+    if (_titleBannerToDelete && _titleBannerToDelete !== titleBannerPath) {
+      await _deleteGitHubFile(_titleBannerToDelete, null, 'Admin: elimina banner de título anterior');
+    }
+    _titleBannerToDelete = null;
+    if (!titleBannerPath) {
+      // limpiar si el admin quitó el banner
+      titleBannerPath = null;
+    }
+
     const active = _activeLogo();
     _brand = {
-      version: 2,
+      version: 3,
       projectName,
       logoPath: active ? active.path : null,
       logoId: active ? active.id : null,
@@ -2830,6 +3142,15 @@ async function saveBrand() {
         ext: l.ext || (l.path && l.path.split('.').pop()) || 'png',
         createdAt: l.createdAt || stamp
       })),
+      titleBannerPath,
+      titleBannerHref: titleBannerPath ? _readBannerHrefFromForm() : null,
+      titleBannerScale: titleBannerPath
+        ? _clampBannerScale(
+            document.getElementById('brand-banner-scale')
+              ? document.getElementById('brand-banner-scale').value
+              : _brand.titleBannerScale
+          )
+        : 100,
       font: _brandFont,
       dockStyle: _brandStyle,
       mobileSolid,
@@ -2837,7 +3158,6 @@ async function saveBrand() {
       loteFillOnHoverOnly,
       loteHoverColor: _hoverColorSelected,
       aiProvider,
-      features: (typeof __kpkCollectFeatures === 'function' ? __kpkCollectFeatures() : (_brand.features || {})),
       voiceMode: document.getElementById('brand-ai-voice') ? document.getElementById('brand-ai-voice').value : 'auto_gigi',
       ttsOutputEnabled: localStorage.getItem('kpk_tts_output') === '1',
       aiKeys: {
@@ -3233,7 +3553,6 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     toggleGodLayer();
   }
-  // Esc también puede cerrar si está abierto
   if (e.key === 'Escape') {
     const layer = document.getElementById('god-layer');
     if (layer && layer.classList.contains('visible')) {
@@ -3451,97 +3770,6 @@ document.addEventListener('keydown', e => {
 
     return { start, next, end };
   })();
-</script>
-<script>
-
-/* ─── KPK Premium · feature toggles + test AI ─── */
-(function initKpkPremiumAdmin() {
-  const FEAT_KEYS = ['copilot','voice','calendar','finance','tourism','weather','nearby','mapTab'];
-
-  function getFeatState() {
-    const st = {};
-    document.querySelectorAll('#kpk-feat-grid .kpk-feat-btn').forEach(btn => {
-      st[btn.dataset.feat] = btn.classList.contains('is-on');
-    });
-    return st;
-  }
-
-  function setFeatUi(st) {
-    document.querySelectorAll('#kpk-feat-grid .kpk-feat-btn').forEach(btn => {
-      const on = st[btn.dataset.feat] !== false;
-      btn.classList.toggle('is-on', on);
-    });
-  }
-
-  function loadFeatFromBrand() {
-    try {
-      const raw = localStorage.getItem('kpk_features_v1');
-      if (raw) setFeatUi(JSON.parse(raw));
-      else if (_brand && _brand.features) setFeatUi(_brand.features);
-    } catch (e) {}
-  }
-
-  document.addEventListener('DOMContentLoaded', function () {
-    const grid = document.getElementById('kpk-feat-grid');
-    if (!grid) return;
-    grid.addEventListener('click', function (e) {
-      const btn = e.target.closest('.kpk-feat-btn');
-      if (!btn) return;
-      btn.classList.toggle('is-on');
-    });
-    const apply = document.getElementById('btn-feat-apply-local');
-    if (apply) apply.addEventListener('click', function () {
-      const st = getFeatState();
-      localStorage.setItem('kpk_features_v1', JSON.stringify(st));
-      if (_brand) _brand.features = Object.assign({}, _brand.features || {}, st);
-      if (window.FerrariPlan && FerrariPlan.setFeatures) FerrariPlan.setFeatures(st);
-      showToast('Módulos aplicados en este navegador. Publica identidad para guardarlos en GitHub.', 'ok');
-    });
-    const allOn = document.getElementById('btn-feat-all-on');
-    if (allOn) allOn.addEventListener('click', function () {
-      const st = {}; FEAT_KEYS.forEach(k => st[k] = true); setFeatUi(st);
-    });
-    const allOff = document.getElementById('btn-feat-all-off');
-    if (allOff) allOff.addEventListener('click', function () {
-      const st = {}; FEAT_KEYS.forEach(k => st[k] = false); st.copilot = true; setFeatUi(st);
-    });
-    loadFeatFromBrand();
-  });
-
-  window.__kpkCollectFeatures = getFeatState;
-})();
-
-async function testAIKeyConnection() {
-  const status = document.getElementById('ai-test-status');
-  const keyEl = document.getElementById('brand-ai-key');
-  const provEl = document.getElementById('brand-ai-provider');
-  if (!status || !keyEl) return;
-  const key = (keyEl.value || '').trim();
-  const prov = provEl ? provEl.value : 'openrouter';
-  if (!key) { status.textContent = 'Falta API key'; status.style.color = '#ff8a8a'; return; }
-  status.textContent = 'Probando…'; status.style.color = 'var(--text-2)';
-  try {
-    let ok = false;
-    if (prov === 'openrouter') {
-      const r = await fetch('https://openrouter.ai/api/v1/models', { headers: { Authorization: 'Bearer ' + key } });
-      ok = r.ok;
-    } else if (prov === 'groq') {
-      const r = await fetch('https://api.groq.com/openai/v1/models', { headers: { Authorization: 'Bearer ' + key } });
-      ok = r.ok;
-    } else if (prov === 'gemini') {
-      const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + encodeURIComponent(key));
-      ok = r.ok;
-    } else {
-      ok = key.length > 8;
-    }
-    status.textContent = ok ? 'Conexión OK' : 'Falló (revisa key / cuota)';
-    status.style.color = ok ? '#39FF14' : '#ff8a8a';
-  } catch (err) {
-    status.textContent = 'Error de red';
-    status.style.color = '#ff8a8a';
-  }
-}
-
 </script>
 </body>
 </html>

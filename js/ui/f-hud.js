@@ -89,6 +89,8 @@
     'geo-north':         'Fijar Norte',
     'geo-horizonte':     'Pin Horizonte',
     'geo-ruta':          'Pin Ruta',
+    'geo-amenidad':      'Amenities',
+    'tone':              'Tonos 360',
     'kmz-manip':         'Mover calco KMZ'
   };
 
@@ -100,6 +102,8 @@
     'geo-north':         'Click en la dirección del Norte real para calibrar la brújula',
     'geo-horizonte':     'Click · busca ciudad/volcán · coords automáticas · Maps/Waze',
     'geo-ruta':          'Click · busca acceso/carretera · GPS automático · Maps/Waze',
+    'geo-amenidad':      'Elige icono en el dock · click en el 360 para colocar · Arrastra para mover',
+    'tone':              'Presets y sliders · solo tiñe la foto 360 · lotes intactos',
     'kmz-manip':         'Arrastra: mover · Shift+arrastre o rueda: escalar · Esc: salir'
   };
 

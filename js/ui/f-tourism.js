@@ -692,7 +692,6 @@
       '" target="_blank" rel="noopener">Waze</a>' +
       '<button type="button" class="kpk-tw-btn kpk-tw-btn--look" id="kpk-tw-look">Ver en 360°</button>' +
       '<button type="button" class="kpk-tw-btn kpk-tw-btn--next" id="kpk-tw-next">Otro plan cerca</button>' +
-      '<button type="button" class="kpk-tw-btn kpk-tw-btn--lot" id="kpk-tw-lot">Quiero un lote aquí cerca</button>' +
       '<a class="kpk-tw-btn kpk-tw-btn--wa" id="kpk-tw-wa" href="#" target="_blank" rel="noopener">WhatsApp al asesor</a>';
 
     const openRoute = () => {
@@ -733,27 +732,6 @@
     if (nextBtn) {
       nextBtn.onclick = () => {
         openNextInCategory(poi.category, poi.id);
-      };
-    }
-
-    const lotBtn = footer.querySelector('#kpk-tw-lot');
-    if (lotBtn) {
-      lotBtn.onclick = () => {
-        try {
-          const q =
-            'Después de ver ' +
-            poi.title +
-            ', quiero un lote disponible cerca del proyecto. ¿Cuáles me recomiendas?';
-          if (window.__kpkSendTourismFollowUp) {
-            window.__kpkSendTourismFollowUp(q);
-          } else {
-            const input = document.getElementById('kpk-ai-input');
-            if (input) {
-              input.value = q;
-              input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-            }
-          }
-        } catch (e) {}
       };
     }
 

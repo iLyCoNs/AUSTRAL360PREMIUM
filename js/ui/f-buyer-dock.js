@@ -275,7 +275,7 @@
       // Al cambiar a Cercanos desde la barra de tabs: auto-buscar si no se hizo
       if (_tab === 'lugares' && !_nearbySearched && _origin()) {
         _nearbySearched = true;
-        _searchNearby();
+        _searchNearby({ silent: true });
       }
       render();
     });
@@ -458,16 +458,18 @@
     return _poiPins().filter(p => p.tipo === 'poi');
   }
 
-  function _searchNearby() {
+  function _searchNearby(opts) {
     const o = _origin();
     if (!o) {
-      window.FerrariUI && window.FerrariUI.showToast('Define primero el origen del dron.', 'error');
+      if (!(opts && opts.silent)) {
+        window.FerrariUI && window.FerrariUI.showToast('Define primero el origen del dron.', 'error');
+      }
       return;
     }
     const group = POI_GROUPS.find(g => g.id === _poiFilter);
     const cats = group && group.cats ? group.cats : POI_GROUPS.flatMap(g => g.cats || []).filter((v, i, a) => a.indexOf(v) === i);
     if (window.FerrariGeoTools && window.FerrariGeoTools.fetchNearby) {
-      window.FerrariGeoTools.fetchNearby(_nearbyRadius * 1000, cats, o);
+      window.FerrariGeoTools.fetchNearby(_nearbyRadius * 1000, cats, o, opts || {});
     }
   }
 
@@ -827,9 +829,10 @@
     render();
     
     // Auto-gatillar búsqueda de lugares cercanos al iniciar si el origen ya existe
+    // silent: evita toast rojo 504/404 si Overpass está caído al cargar la demo
     if (!_nearbySearched && _origin()) {
       _nearbySearched = true;
-      setTimeout(_searchNearby, 1000);
+      setTimeout(() => _searchNearby({ silent: true }), 1000);
     }
 
     setInterval(() => {
@@ -842,7 +845,7 @@
       _mapLoadedFor = null;
       if (!_nearbySearched && _origin()) {
         _nearbySearched = true;
-        setTimeout(_searchNearby, 500);
+        setTimeout(() => _searchNearby({ silent: true }), 500);
       }
       render();
     });
@@ -866,7 +869,7 @@
     // Al abrir la pestaña Cercanos: auto-disparar búsqueda OSM si aún no se ha hecho
     if (tabName === 'lugares' && !_nearbySearched && _origin()) {
       _nearbySearched = true;
-      _searchNearby();
+      _searchNearby({ silent: true });
     }
     render();
   }

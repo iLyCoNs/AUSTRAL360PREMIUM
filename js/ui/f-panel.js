@@ -14,6 +14,7 @@
 
   let _panelOpen = false;
   let _bound     = false;
+  let _idleResumeTimer = null;
 
   // ─── REGISTRO DE HERRAMIENTAS ─────────────────────────────────────
   // Cada tool se registra aquí para poder desactivarlas todas de golpe
@@ -40,6 +41,14 @@
       btn.setAttribute('aria-pressed', 'false');
     });
     _syncNearbyHideBtn();
+    // Resume idle solo si nadie reactive una tool en este tick
+    if (_idleResumeTimer) clearTimeout(_idleResumeTimer);
+    _idleResumeTimer = setTimeout(function () {
+      _idleResumeTimer = null;
+      if (!window.currentTool && window.FerrariIdleCam && window.FerrariIdleCam.resume) {
+        window.FerrariIdleCam.resume();
+      }
+    }, 0);
   }
 
   // ─── EXPONER FerrariTools INMEDIATAMENTE ─────────────────────────
@@ -70,6 +79,8 @@
     if (window.FerrariKmzCalco) {
       registerTool(window.FerrariKmzCalco);
     }
+    if (window.FerrariTone) registerTool(window.FerrariTone);
+    if (window.FerrariAmenities) registerTool(window.FerrariAmenities);
 
     // Registrar eventos de cada tool (una sola vez)
     window.FerrariDrawLote.bindEvents();
@@ -81,6 +92,12 @@
     window.FerrariGeoTools.bindEvents();
     if (window.FerrariKmzCalco && window.FerrariKmzCalco.bindEvents) {
       window.FerrariKmzCalco.bindEvents();
+    }
+    if (window.FerrariTone && window.FerrariTone.bindEvents) {
+      window.FerrariTone.bindEvents();
+    }
+    if (window.FerrariAmenities && window.FerrariAmenities.bindEvents) {
+      window.FerrariAmenities.bindEvents();
     }
 
     // ── Panel toggle ─────────────────────────────────────────────
@@ -109,6 +126,8 @@
     _bindToolButton('tool-geo-horizonte', () => _activateTool('geo-horizonte'));
     _bindToolButton('tool-geo-ruta',      () => _activateTool('geo-ruta'));
     _bindToolButton('tool-geo-nearby',    () => _activateTool('geo-nearby'));
+    _bindToolButton('tool-geo-amenidad',  () => _activateTool('geo-amenidad'));
+    _bindToolButton('tool-tone',          () => _activateTool('tone'));
 
     const btnNearbyHide = document.getElementById('tool-geo-nearby-hide');
     if (btnNearbyHide) {
@@ -206,6 +225,14 @@
   // ─── ACTIVACIÓN DE HERRAMIENTAS ──────────────────────────────────
 
   function _activateTool(tipo) {
+    if (_idleResumeTimer) {
+      clearTimeout(_idleResumeTimer);
+      _idleResumeTimer = null;
+    }
+    if (window.FerrariIdleCam && typeof window.FerrariIdleCam.pause === 'function') {
+      // Tone es panel de look: no necesita pausar idle
+      if (tipo !== 'tone') window.FerrariIdleCam.pause();
+    }
     switch(tipo) {
       case 'lote-libre':
       case 'lote-organico':
@@ -237,12 +264,19 @@
           btn.classList.remove('active');
           btn.setAttribute('aria-pressed', 'false');
         });
+        if (window.FerrariIdleCam) window.FerrariIdleCam.resume();
         return;
       case 'geo-horizonte':
         window.FerrariGeoTools.activate('horizonte');
         break;
       case 'geo-ruta':
         window.FerrariGeoTools.activate('ruta');
+        break;
+      case 'geo-amenidad':
+        if (window.FerrariAmenities) window.FerrariAmenities.activate();
+        break;
+      case 'tone':
+        if (window.FerrariTone) window.FerrariTone.activate();
         break;
       case 'geo-nearby':
         if (window.FerrariGeoTools.openNearbyDialog) {
@@ -254,6 +288,7 @@
           btn.classList.remove('active');
           btn.setAttribute('aria-pressed', 'false');
         });
+        if (window.FerrariIdleCam) window.FerrariIdleCam.resume();
         return;
     }
 

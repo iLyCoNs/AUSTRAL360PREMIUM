@@ -41,29 +41,30 @@
   let _widget = null;
   let _refreshTimer = null;
   let _clockTimer = null;
-  let _collapsed = false;
+  let _collapsed = true; // al cargar: minimizado; el cliente lo abre
   let _tz = 'America/Santiago';
   let _lastLat = null;
   let _lastLng = null;
 
+  const ICON_EXPAND =
+    `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2v6M2 5h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+  const ICON_COLLAPSE =
+    `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+
   function createWidget() {
     const el = document.createElement('div');
     el.id = 'kpk-weather-widget';
-    el.className = 'kpk-weather';
+    el.className = 'kpk-weather kpk-weather--collapsed';
     el.setAttribute('role', 'complementary');
     el.setAttribute('aria-label', 'Widget del clima');
     el.innerHTML = `
-      <div class="kpk-weather__handle" id="kpk-weather-handle" title="Arrastrar">
-        <div class="kpk-weather__grip">
-          <span></span><span></span><span></span>
-        </div>
-        <button class="kpk-weather__collapse" id="kpk-weather-toggle" title="Minimizar" type="button">
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-            <path d="M2 5h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-        </button>
+      <button class="kpk-weather__collapse" id="kpk-weather-toggle" title="Expandir clima" type="button" aria-expanded="false" aria-label="Expandir clima">
+        ${ICON_EXPAND}
+      </button>
+      <div class="kpk-weather__handle" id="kpk-weather-handle" title="Arrastrar" hidden>
+        <span class="kpk-weather__drag-label">CLIMA DEL LUGAR</span>
       </div>
-      <div class="kpk-weather__body" id="kpk-weather-body">
+      <div class="kpk-weather__body" id="kpk-weather-body" style="display:none">
         <div class="kpk-weather__main">
           <div class="kpk-weather__icon" id="kpk-w-icon">—</div>
           <div class="kpk-weather__temp-wrap">
@@ -83,20 +84,49 @@
       window.FerrariDrag.attach(el, { handle: '#kpk-weather-handle' });
     }
 
-    el.querySelector('#kpk-weather-toggle').addEventListener('click', toggleCollapse);
+    el.querySelector('#kpk-weather-toggle').addEventListener('click', function (e) {
+      e.stopPropagation();
+      toggleCollapse();
+    });
     startClock();
     return el;
   }
 
-  function toggleCollapse() {
-    _collapsed = !_collapsed;
+  function applyCollapseUi() {
+    if (!_widget) return;
     const body = _widget.querySelector('#kpk-weather-body');
     const btn  = _widget.querySelector('#kpk-weather-toggle');
-    body.style.display = _collapsed ? 'none' : '';
+    const handle = _widget.querySelector('#kpk-weather-handle');
+    if (body) body.style.display = _collapsed ? 'none' : '';
+    if (handle) handle.hidden = !!_collapsed;
     _widget.classList.toggle('kpk-weather--collapsed', _collapsed);
-    btn.innerHTML = _collapsed
-      ? `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2v6M2 5h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`
-      : `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+    if (btn) {
+      btn.innerHTML = _collapsed ? ICON_EXPAND : ICON_COLLAPSE;
+      btn.title = _collapsed ? 'Expandir clima' : 'Minimizar';
+      btn.setAttribute('aria-label', _collapsed ? 'Expandir clima' : 'Minimizar clima');
+      btn.setAttribute('aria-expanded', _collapsed ? 'false' : 'true');
+    }
+  }
+
+  function toggleCollapse() {
+    _collapsed = !_collapsed;
+    applyCollapseUi();
+  }
+
+  function expand() {
+    if (!_widget) createWidget();
+    _collapsed = false;
+    applyCollapseUi();
+  }
+
+  function collapse() {
+    if (!_widget) return;
+    _collapsed = true;
+    applyCollapseUi();
+  }
+
+  function isCollapsed() {
+    return !!_collapsed;
   }
 
   function formatLiveClock() {
@@ -222,6 +252,12 @@
     init();
   }
 
-  window.FerrariWeather = { refresh: fetchWeather };
+  window.FerrariWeather = {
+    refresh: fetchWeather,
+    expand,
+    collapse,
+    toggle: toggleCollapse,
+    isCollapsed
+  };
 
 })();

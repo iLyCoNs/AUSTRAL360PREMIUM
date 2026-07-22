@@ -119,9 +119,28 @@
   // ─── Lugares cercanos (Overpass) ─────────────────────────────────
 
   const OVERPASS_ENDPOINTS = [
-    'https://overpass-api.de/api/interpreter',
-    'https://overpass.kumi.systems/api/interpreter'
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://lz4.overpass-api.de/api/interpreter',
+    'https://overpass.osm.ch/api/interpreter',
+    'https://overpass-api.de/api/interpreter'
   ];
+
+  function _friendlyOverpassError(err) {
+    const m = String((err && err.message) || err || '');
+    if (/504|Gateway\s*Time-?out/i.test(m)) {
+      return 'El servidor de mapas está saturado (504). Espera unos segundos y vuelve a buscar.';
+    }
+    if (/429|Too Many|rate/i.test(m)) {
+      return 'Demasiadas consultas al mapa. Espera un momento y reintenta.';
+    }
+    if (/404|Not Found/i.test(m)) {
+      return 'Servicio de lugares no disponible por ahora. Prueba de nuevo en unos segundos.';
+    }
+    if (/Failed to fetch|NetworkError|TypeError/i.test(m)) {
+      return 'Sin conexión al servicio de mapas. Revisa tu red e intenta otra vez.';
+    }
+    return 'No se pudieron cargar lugares cercanos. Reintenta en unos segundos.';
+  }
 
   /** Filtros Overpass por categoría (nwr = node/way/relation) */
   const POI_QUERIES = {
@@ -175,10 +194,15 @@
     return null;
   }
 
-  async function fetchNearby(radiusM, categories, origin) {
+  async function fetchNearby(radiusM, categories, origin, opts) {
+    opts = opts || {};
+    const silent = !!opts.silent;
+
     if (!origin) origin = window.FerrariGeo.droneOrigin;
     if (!origin) {
-      window.FerrariUI && window.FerrariUI.showToast('Define primero el Origen Dron (coordenadas de la foto).', 'error');
+      if (!silent) {
+        window.FerrariUI && window.FerrariUI.showToast('Define primero el Origen Dron (coordenadas de la foto).', 'error');
+      }
       openOriginDialog();
       return;
     }
@@ -188,7 +212,9 @@
       ? categories.filter(c => c !== 'otro')
       : Object.keys(POI_QUERIES);
 
-    window.FerrariUI && window.FerrariUI.showToast('Buscando lugares de primera necesidad…', 'info');
+    if (!silent) {
+      window.FerrariUI && window.FerrariUI.showToast('Buscando lugares de primera necesidad…', 'info');
+    }
 
     const parts = [];
     const seenQ = new Set();
@@ -201,34 +227,57 @@
     });
 
     if (!parts.length) {
-      window.FerrariUI && window.FerrariUI.showToast('Selecciona al menos una categoría.', 'info');
+      if (!silent) {
+        window.FerrariUI && window.FerrariUI.showToast('Selecciona al menos una categoría.', 'info');
+      }
       return;
     }
 
-    const query = `[out:json][timeout:35];(${parts.join('\n')});out center tags;`;
+    // timeout más corto + menos presión en mirrors saturados
+    const query = `[out:json][timeout:25];(${parts.join('\n')});out center tags;`;
+
+    async function _tryEndpoints() {
+      let lastErr = null;
+      for (const url of OVERPASS_ENDPOINTS) {
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'data=' + encodeURIComponent(query)
+          });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const json = await res.json();
+          if (json && Array.isArray(json.elements)) return json;
+          throw new Error('Respuesta inválida');
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+      throw lastErr || new Error('Overpass falló');
+    }
 
     let data = null;
     let lastErr = null;
-    for (const url of OVERPASS_ENDPOINTS) {
+    try {
+      data = await _tryEndpoints();
+    } catch (e1) {
+      lastErr = e1;
+      // Un reintento corto ayuda con 504 intermitentes
+      await new Promise(r => setTimeout(r, 1200));
       try {
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'data=' + encodeURIComponent(query)
-        });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        data = await res.json();
-        break;
-      } catch (e) {
-        lastErr = e;
+        data = await _tryEndpoints();
+        lastErr = null;
+      } catch (e2) {
+        lastErr = e2;
       }
     }
 
     if (!data || !Array.isArray(data.elements)) {
-      window.FerrariUI && window.FerrariUI.showToast(
-        'No se pudieron cargar lugares (' + (lastErr && lastErr.message) + ').',
-        'error'
-      );
+      const msg = _friendlyOverpassError(lastErr);
+      console.warn('[Ferrari/GeoTools] Overpass:', lastErr && lastErr.message, msg);
+      if (!silent) {
+        window.FerrariUI && window.FerrariUI.showToast(msg, 'error');
+      }
       return;
     }
 
@@ -288,10 +337,12 @@
       if (added >= 80) break;
     }
 
-    window.FerrariUI && window.FerrariUI.showToast(
-      added ? `✓ ${added} lugares cercanos añadidos.` : 'No se encontraron lugares nuevos en el radio.',
-      added ? 'success' : 'info'
-    );
+    if (!silent || added > 0) {
+      window.FerrariUI && window.FerrariUI.showToast(
+        added ? `✓ ${added} lugares cercanos añadidos.` : 'No se encontraron lugares nuevos en el radio.',
+        added ? 'success' : 'info'
+      );
+    }
     try { document.dispatchEvent(new CustomEvent('ferrari:geo-changed')); } catch (e) {}
   }
 

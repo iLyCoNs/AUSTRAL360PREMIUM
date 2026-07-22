@@ -383,6 +383,7 @@
     // Exponer API global asegurando que FerrariUI existe
     window.FerrariUI = window.FerrariUI || {};
     window.FerrariUI.openLotePanel = openLotePanel;
+    window.FerrariUI.closeLotePanel = closeLotePanel;
     window.FerrariUI.getCurrentLoteId = () => _currentLoteId;
     window.FerrariUI.getUFValue = () => _ufValue;
 
