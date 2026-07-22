@@ -11,7 +11,7 @@
   "dockStyle": "graphite",
   "mobileSolid": true,
   "hideLoteFill": false,
-  "loteFillOnHoverOnly": false,
+  "loteFillOnHoverOnly": true,
   "loteHoverColor": "neon-green",
   "aiProvider": "lightning",
   "voiceMode": "jarvis_charon",
@@ -36,5 +36,5 @@
     "waAlertsPhone": "",
     "waAlertsKey": ""
   },
-  "updatedAt": 1784723895989
+  "updatedAt": 1784723911237
 }
