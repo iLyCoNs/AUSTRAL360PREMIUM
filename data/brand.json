@@ -1,9 +1,12 @@
 {
-  "version": 2,
+  "version": 3,
   "projectName": "PROYECTO ALERCE PATAGÓN 360°",
   "logoPath": null,
   "logoId": null,
   "logos": [],
+  "titleBannerPath": null,
+  "titleBannerHref": null,
+  "titleBannerScale": 100,
   "font": "montserrat",
   "dockStyle": "graphite",
   "mobileSolid": true,
@@ -12,10 +15,11 @@
   "loteHoverColor": "neon-green",
   "aiProvider": "lightning",
   "voiceMode": "jarvis_charon",
+  "ttsOutputEnabled": false,
   "aiKeys": {
     "openrouter": "",
     "groq": "",
-    "gemini": "kpk-enc-d0dsNjRDOXhfWGxGaUNHSjFhZndqVkJZYS1wc2pCVUtfdkQxQloxNnQ5bEw2TlI4YkEuUUE=",
+    "gemini": "kpk-enc-UWc4VVNKUkQ1Y1IwZXJRYktEUnRQZWlBZTJqNEU4cnhPR3ZCdzFrRnJsd0w2TlI4YkEuUUE=",
     "lightning": "kpk-enc-MGNkODM4OTg1YzQzLTBmY2EtOTgzNC05ZmZhLTY0YjAzMDFkLXRpbC1rcw==",
     "elevenlabs": "kpk-enc-YTgzNTE5NjZlZDE0Zjc1ODkwOTIzM2Y4MmY2MjdiYzhmNTRmYjg3MmE0ZDc5ZTY0X2tz"
   },
@@ -32,22 +36,5 @@
     "waAlertsPhone": "",
     "waAlertsKey": ""
   },
-  "updatedAt": 1784540583184,
-  "plan": "premium",
-  "features": {
-    "copilot": true,
-    "voice": true,
-    "tourism": true,
-    "weather": true,
-    "calendar": true,
-    "finance": true,
-    "nearby": true,
-    "mapTab": true,
-    "gallery": true,
-    "pdf": true,
-    "cta360": true,
-    "buyerDockLotes": true,
-    "drawingTools": true,
-    "draggableWidgets": true
-  }
+  "updatedAt": 1784723863819
 }
