@@ -4,9 +4,9 @@
   "logoPath": null,
   "logoId": null,
   "logos": [],
-  "titleBannerPath": null,
+  "titleBannerPath": "assets/brand/banners/title_mrw2izlh.png",
   "titleBannerHref": null,
-  "titleBannerScale": 100,
+  "titleBannerScale": 200,
   "font": "montserrat",
   "dockStyle": "graphite",
   "mobileSolid": true,
@@ -15,7 +15,7 @@
   "loteHoverColor": "neon-green",
   "aiProvider": "lightning",
   "voiceMode": "jarvis_charon",
-  "ttsOutputEnabled": false,
+  "ttsOutputEnabled": true,
   "aiKeys": {
     "openrouter": "",
     "groq": "",
@@ -36,5 +36,5 @@
     "waAlertsPhone": "",
     "waAlertsKey": ""
   },
-  "updatedAt": 1784723863819
+  "updatedAt": 1784723895989
 }
