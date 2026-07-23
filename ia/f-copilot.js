@@ -270,9 +270,9 @@
 
     // Ayudantes de nombres dinámicos de Jarvis/Gigi
     const mode = _getVoiceMode();
-    const isGigi = mode.includes('gigi') || mode.includes('dalia') || mode.includes('stream') || mode === 'auto_gigi';
+    const isGigi = mode.includes('gigi') || mode.includes('dalia') || mode.includes('stream') || mode.includes('n8n') || mode === 'auto_gigi';
     const isJarvis = mode.includes('jarvis') || mode.includes('charon') || mode.includes('daniel');
-    const assistantName = isJarvis ? 'Jarvis' : (isGigi ? 'Gigi' : 'Jarvis');
+    const assistantName = isJarvis ? 'Jarvis' : (isGigi ? 'Gigi' : 'Gigi');
     // Sin "Charon" en UI mientras TTS está apagado (modo solo texto)
     const assistantTitle = isJarvis
       ? (_speechEnabled ? 'Asistente JARVIS · Charon' : 'Asistente JARVIS')
@@ -657,7 +657,7 @@
     const brand = (window.FerrariBrandDock && typeof window.FerrariBrandDock.getBrand === 'function')
       ? window.FerrariBrandDock.getBrand() : {};
     const mode = _getVoiceMode();
-    const isGigi = mode.includes('gigi') || mode.includes('dalia') || mode.includes('stream') || mode === 'auto_gigi';
+    const isGigi = mode.includes('gigi') || mode.includes('dalia') || mode.includes('stream') || mode.includes('n8n') || mode === 'auto_gigi';
     return {
       projectName: brand.projectName || 'Austral 360',
       assistantName: isGigi ? 'Gigi' : 'Jarvis',
@@ -1176,7 +1176,7 @@
         _isWaitingForName = false;
         _input.value = '';
         const mode = _getVoiceMode();
-        const isGigi = mode.includes('gigi') || mode.includes('dalia');
+        const isGigi = mode.includes('gigi') || mode.includes('dalia') || mode.includes('n8n') || mode.includes('elevenlabs') || mode === 'auto_gigi';
         const replyText = isGigi 
           ? `¡Listo! Disculpa la confusión 😊. Ahora te llamaré ${_clientName}. ¿En qué te puedo ayudar hoy?` 
           : `Entendido. Nombre actualizado a ${_clientName}, señor. ¿En qué puedo asistile?`;
@@ -1197,7 +1197,7 @@
       );
     if (_isWaitingForName && prompt && !_isAgendaIntent) {
       const modeWait = _getVoiceMode();
-      const isGigiWait = modeWait.includes('gigi') || modeWait.includes('dalia');
+      const isGigiWait = modeWait.includes('gigi') || modeWait.includes('dalia') || modeWait.includes('n8n') || modeWait.includes('elevenlabs') || modeWait === 'auto_gigi';
       const isMobileWait = window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
       // Si manda consulta comercial sin nombre: pedir nombre otra vez (no saltar el onboarding)
