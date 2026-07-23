@@ -4007,10 +4007,14 @@
               setTimeout(() => done(true), 250);
             }
           }).catch((err) => {
-            console.warn('[Gigi/Voz] audio.play() bloqueado:', err && err.name, err && err.message);
-            URL.revokeObjectURL(url);
-            setAISpeaking(false);
-            done(false);
+            console.warn('[Gigi/Voz] audio.play() retenido por Autoplay Policy:', err && err.name);
+            const unlockAndPlay = () => {
+              window.removeEventListener('pointerdown', unlockAndPlay);
+              window.removeEventListener('keydown', unlockAndPlay);
+              audio.play().then(() => done(true)).catch(() => done(false));
+            };
+            window.addEventListener('pointerdown', unlockAndPlay, { once: true });
+            window.addEventListener('keydown', unlockAndPlay, { once: true });
           });
         }
       } catch(e) {
