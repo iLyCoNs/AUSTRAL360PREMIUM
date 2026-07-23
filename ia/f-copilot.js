@@ -3663,6 +3663,8 @@
   }
 
   async function _probeOneTtsBase(base, timeoutMs) {
+    if (!base) return false;
+    if (base.includes('/webhook')) return true;
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), timeoutMs || 2500);
     try {
@@ -3681,7 +3683,7 @@
     }
     _localTtsOk = false;
 
-    // 1) Puente por internet (VPS) — funciona desde GitHub Pages
+    // 1) Puente por internet (n8n Cloud / VPS) — funciona desde GitHub Pages
     const remote = _configuredTtsProxyUrl();
     if (remote) {
       if (await _probeOneTtsBase(remote, 3500)) {
