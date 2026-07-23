@@ -3680,19 +3680,13 @@
   }
 
   async function _probeLocalTtsProxy(force) {
-    if (!force && _localTtsOk !== null && (Date.now() - _localTtsCheckedAt) < 30000) {
-      return _localTtsOk;
-    }
-    _localTtsOk = false;
-
-    // 1) Puente por internet (n8n Cloud / VPS) — funciona desde GitHub Pages
     const remote = _configuredTtsProxyUrl();
+    // 1) Puente por internet (n8n Cloud / VPS) — siempre activo desde GitHub Pages
     if (remote) {
-      if (await _probeOneTtsBase(remote, 3500)) {
+      if (remote.includes('/webhook') || await _probeOneTtsBase(remote, 3500)) {
         LOCAL_TTS_PROXY = remote;
         _localTtsOk = true;
         _localTtsCheckedAt = Date.now();
-        console.log('[Gigi/Voz] Puente TTS remoto OK:', remote);
         return true;
       }
       console.warn('[Gigi/Voz] Puente TTS remoto no responde:', remote);
