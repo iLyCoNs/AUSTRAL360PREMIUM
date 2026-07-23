@@ -15,7 +15,6 @@
   "loteHoverColor": "neon-green",
   "aiProvider": "nvidia",
   "voiceMode": "elevenlabs_daniel",
-  "ttsProxyUrl": "https://lycons.app.n8n.cloud/webhook/nvidia-tts",
   "ttsOutputEnabled": true,
   "aiKeys": {
     "nvidia": "kpk-enc-d0NzWm55U2hfTk1oNDNTMUtNd0pQa0hMTmhQMVgtN0pYRGJjS1kxTzBHcGVZaWsxdnpucFBWVDJOMDE1Q0V0ei1pcGF2bg==",
@@ -38,5 +37,5 @@
     "waAlertsPhone": "",
     "waAlertsKey": ""
   },
-  "updatedAt": 1784723967611
+  "updatedAt": 1784796580030
 }
