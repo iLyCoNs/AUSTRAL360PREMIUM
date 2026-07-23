@@ -14,7 +14,7 @@
     aiProvider: 'nvidia',
 
   // Voz: elevenlabs_daniel = ElevenLabs Daniel (Voz Humana Male); elevenlabs_gigi = Gigi Bella; jarvis_charon = Gemini Charon
-  voiceMode: 'elevenlabs_daniel',
+  voiceMode: 'n8n_cloud_tts',
 
     // Puente TTS 24/7 en la nube (n8n Cloud)
     ttsProxyUrl: 'https://lycons.app.n8n.cloud/webhook/nvidia-tts',
