@@ -4070,6 +4070,11 @@
 
   // ─── Nivel 2 (en desktop): Web Speech API — instantánea, sin red, sin CORS ──
   function _speakWebSpeech(text) {
+    const pref = _getPreferredVoiceMode();
+    if (pref !== 'webspeech') {
+      console.log('[Gigi/Voz] WebSpeech robótico bloqueado estrictamente por preferencia:', pref);
+      return false;
+    }
     if (!('speechSynthesis' in window)) return false;
     try {
       const voices = _cachedVoices.length ? _cachedVoices : window.speechSynthesis.getVoices();
