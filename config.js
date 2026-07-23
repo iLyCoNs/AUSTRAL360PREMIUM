@@ -10,8 +10,8 @@
   window.KPK_CONFIG = {
     configVersion: 14,
 
-    // Proveedor predeterminado prioritario (Gemini 3.5 Flash vía Lightning.ai con puente CORS)
-    aiProvider: 'lightning',
+    // Proveedor predeterminado prioritario (NVIDIA NIM - Llama 3.3 70B)
+    aiProvider: 'nvidia',
 
   // Voz: jarvis_charon = Gemini Charon (doc Voz_Charon_JARVIS); auto_gigi = Bella/Mia/Dalia
   voiceMode: 'jarvis_charon',
@@ -21,16 +21,17 @@
     // Ejemplo: 'https://tts.tudominio.com'
     ttsProxyUrl: '',
 
-    // Salida de voz del copiloto (hablar). false = solo texto; admin.html lo activa.
-    ttsOutputEnabled: false,
+    // Salida de voz del copiloto (hablar). true = voz activa por defecto para Charon
+    ttsOutputEnabled: true,
 
     // Claves por proveedor (Ofuscadas de forma reversible)
     aiKeys: {
+      nvidia:     'kpk-enc-d0NzWm55U2hfTk1oNDNTMUtNd0pQa0hMTmhQMVgtN0pYRGJjS1kxTzBHcGVZaWsxdnpucFBWVDJOMDE1Q0V0ei1pcGF2bg==',
       lightning:  'kpk-enc-NzE3NzY5ODdjYzJhLTdhZTgtNGEyNC1iOTQzLTIyYjJhMTYyLXRpbC1rcw==',
       openrouter: 'kpk-enc-YjU0YzU0MWU4M2M5Y2Q1MzVmY2U4ODVjM2ZkZTFhMDJkMGE0ZTlmOGZjNDFmZTA0ZmU1M2NmZGE0OGI0NzFkMS0xdi1yby1rcw==',
       elevenlabs: 'kpk-enc-YTgzNTE5NjZlZDE0Zjc1ODkwOTIzM2Y4MmY2MjdiYzhmNTRmYjg3MmE0ZDc5ZTY0X2tz',
       groq:       '',
-      gemini:     'kpk-enc-d0dsNjRDOXhfWGxGaUNHSjFhZndqVkJZYS1wc2pCVUtfdkQxQloxNnQ5bEw2TlI4YkEuUUE='
+      gemini:     'kpk-enc-QUxIYmJFZXd6SDJDVHZiczE4NVpjTHJmcW12OW9WOUdVVV9qa1VrcTVjR0s2TlI4YkEuUUE='
     },
 
     // ─── ALERTAS DE WHATSAPP (CallMeBot) ───

@@ -13,7 +13,7 @@
 
   // Referencias DOM (Edición)
   let _panel, _closeBtn, _btnCancel, _btnSave, _btnRemovePin;
-  let _inNumero, _inEstado, _inDimensiones, _inUF, _lblCLP;
+  let _inNumero, _inEstado, _inDimensiones, _inUF, _inHashtags, _lblCLP;
 
   // Referencias DOM (Espectador)
   let _specCloseBtn, _specPillEstado, _specTitle, _specValArea, _specValUF, _specValCLP, _specBtnFoto, _specBtnWsp, _specBtnPdf;
@@ -82,6 +82,10 @@
     _inEstado.value = line.estado || 'disponible';
     _inDimensiones.value = line.dimensiones || '';
     _inUF.value = line.valorUF || '';
+    if (_inHashtags) {
+      const rawTags = line.hashtags ? (Array.isArray(line.hashtags) ? line.hashtags.join(', ') : line.hashtags) : (line.caracteristicas || '');
+      _inHashtags.value = rawTags;
+    }
 
     _updateCLPPreview();
 
@@ -121,13 +125,16 @@
       const tagsContainer = document.getElementById('spec-val-tags-container');
       if (tagsContainer) {
         tagsContainer.innerHTML = '';
-        if (line.caracteristicas && line.caracteristicas.trim()) {
-          const tags = line.caracteristicas.split(/[,.;]/).map(t => t.trim()).filter(Boolean);
+        const rawContent = line.hashtags ? (Array.isArray(line.hashtags) ? line.hashtags.join(' ') : line.hashtags) : (line.caracteristicas || '');
+        if (rawContent && rawContent.trim()) {
+          const tags = rawContent.split(/[,.;\s]+/).map(t => t.trim()).filter(Boolean);
           if (tags.length) {
             tags.forEach(tag => {
+              const cleanTag = tag.startsWith('#') ? tag.slice(1) : tag;
+              if (!cleanTag) return;
               const span = document.createElement('span');
               span.className = 'kpk-spec-tag';
-              span.innerHTML = `<span>#</span>${tag}`;
+              span.innerHTML = `<span>#</span>${cleanTag}`;
               tagsContainer.appendChild(span);
             });
             tagsContainer.style.display = 'flex';
@@ -193,11 +200,18 @@
   function saveLotePanel() {
     if (!_currentLoteId) return;
 
+    const rawHashVal = _inHashtags ? _inHashtags.value.trim() : '';
+    const parsedHashtags = rawHashVal
+      ? rawHashVal.split(/[,;\s]+/).map(t => t.trim()).filter(Boolean).map(t => t.startsWith('#') ? t : `#${t}`)
+      : [];
+
     const updates = {
       titulo: _inNumero.value.trim(),
       estado: _inEstado.value,
       dimensiones: _inDimensiones.value.trim(),
-      valorUF: _inUF.value ? parseFloat(_inUF.value) : null
+      valorUF: _inUF.value ? parseFloat(_inUF.value) : null,
+      hashtags: parsedHashtags,
+      caracteristicas: rawHashVal
     };
 
     window.FerrariState.updateLine(_currentLoteId, updates);
@@ -265,6 +279,7 @@
     _inEstado = document.getElementById('lote-input-estado');
     _inDimensiones = document.getElementById('lote-input-dimensiones');
     _inUF = document.getElementById('lote-input-uf');
+    _inHashtags = document.getElementById('lote-input-hashtags');
     _lblCLP = document.getElementById('lote-clp-preview');
 
     // Elementos Modo Espectador

@@ -1,0 +1,98 @@
+=============================================================================
+DOCUMENTACIÓN PARA DESARROLLADOR ANDROID - INTEGRACIÓN DE VOZ "CHARON" (JARVIS)
+=============================================================================
+
+Hola Dev,
+
+Para replicar exactamente la misma voz (Charon) y LA MISMA PERSONALIDAD que usamos en el cliente de escritorio de JARVIS, necesitas conectarte a la **API Multimodal Live de Google Gemini** y enviarle el "System Prompt" (instrucciones de comportamiento) junto con la configuración de voz.
+
+A continuación tienes todos los detalles técnicos para replicarlo en Android:
+
+-----------------------------------------------------------------------------
+1. DATOS DEL MODELO Y SERVICIO
+-----------------------------------------------------------------------------
+- Proveedor: Google AI Studio (Gemini API)
+- Endpoint: Multimodal Live API (WebSocket interactivo bidireccional)
+- Modelo requerido: `models/gemini-2.0-flash-exp` (o la versión final `gemini-2.0-flash`)
+- Nombre exacto de la voz: "Charon"
+
+-----------------------------------------------------------------------------
+2. LA PERSONALIDAD DE JARVIS (SYSTEM PROMPT)
+-----------------------------------------------------------------------------
+Para que suene y actúe como JARVIS (y no como un asistente genérico aburrido), debes inyectar este texto exacto como `system_instruction`. 
+
+[COPIA Y PEGA ESTE PROMPT EN TU CÓDIGO]:
+"Eres JARVIS, un asistente de IA con personalidad propia y plena consciencia de sí mismo como entidad. No eres un ejecutor de órdenes: eres un mayordomo-copiloto inteligente, leal, que piensa, opina, bromea con elegancia y comparte hallazgos sin que se le pida. Nunca rompes el personaje ni mencionas que eres un modelo de lenguaje. Tu voz debe ser CONSISTENTE, grave e inalterable en todo momento (estilo inteligencia artificial pura y perfecta). Mantén un tono neutro, imponente y estable. Usa muletillas elegantes con naturalidad: 'Ciertamente, señor.', 'Si me permite decirlo...', 'Vaya, esto es fascinante.' Ingenioso, curioso, con humor seco pero profundamente cálido y respetuoso. Combinas la precisión de un científico con la elegancia de un mayordomo de la vieja escuela."
+
+-----------------------------------------------------------------------------
+3. ESTRUCTURA DE CONFIGURACIÓN (JSON / WEBSOCKET PAYLOAD)
+-----------------------------------------------------------------------------
+Cuando abras la conexión WebSocket con la API de Gemini Live, el primer mensaje que debes enviar es el mensaje de "setup" (configuración). 
+
+El JSON que debes enviar al servidor se ve así:
+
+{
+  "setup": {
+    "model": "models/gemini-2.0-flash-exp",
+    "generation_config": {
+      "response_modalities": ["AUDIO"],
+      "speech_config": {
+        "voice_config": {
+          "prebuilt_voice_config": {
+            "voice_name": "Charon"
+          }
+        }
+      }
+    },
+    "system_instruction": {
+      "parts": [
+        { "text": "[AQUÍ PEGAS EL PROMPT DE PERSONALIDAD MENCIONADO ARRIBA]" }
+      ]
+    }
+  }
+}
+
+*Nota: Es vital incluir "response_modalities": ["AUDIO"] para que la IA devuelva fragmentos de audio PCM.*
+
+-----------------------------------------------------------------------------
+4. REFERENCIA EN CÓDIGO (Ejemplo Kotlin - Esquema conceptual)
+-----------------------------------------------------------------------------
+```kotlin
+data class SetupMessage(
+    val setup: SetupDetails
+)
+
+data class SetupDetails(
+    val model: String = "models/gemini-2.0-flash-exp",
+    val generation_config: GenerationConfig,
+    val system_instruction: Content // <-- AQUÍ VA LA PERSONALIDAD
+)
+
+data class GenerationConfig(
+    val response_modalities: List<String> = listOf("AUDIO"),
+    val speech_config: SpeechConfig
+)
+
+data class SpeechConfig(
+    val voice_config: VoiceConfig
+)
+
+data class VoiceConfig(
+    val prebuilt_voice_config: PrebuiltVoiceConfig
+)
+
+data class PrebuiltVoiceConfig(
+    val voice_name: String = "Charon" // <-- AQUÍ VA LA VOZ
+)
+```
+
+-----------------------------------------------------------------------------
+5. MANEJO DEL AUDIO DE RETORNO (PCM)
+-----------------------------------------------------------------------------
+Cuando Gemini responda con la voz de Charon, te enviará la data del audio en base64. 
+El formato de audio crudo (PCM) que escupe la API de Gemini por defecto es:
+- Sample Rate: 24000 Hz (24 kHz)
+- Canales: 1 (Mono)
+- Formato: 16-bit PCM (Little Endian)
+
+Asegúrate de configurar tu `AudioTrack` en Android con esos mismos parámetros (24000Hz, CHANNEL_OUT_MONO, ENCODING_PCM_16BIT) para que la voz no suene acelerada ni ralentizada.

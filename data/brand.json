@@ -13,13 +13,14 @@
   "hideLoteFill": false,
   "loteFillOnHoverOnly": true,
   "loteHoverColor": "neon-green",
-  "aiProvider": "lightning",
+  "aiProvider": "nvidia",
   "voiceMode": "jarvis_charon",
   "ttsOutputEnabled": true,
   "aiKeys": {
+    "nvidia": "kpk-enc-d0NzWm55U2hfTk1oNDNTMUtNd0pQa0hMTmhQMVgtN0pYRGJjS1kxTzBHcGVZaWsxdnpucFBWVDJOMDE1Q0V0ei1pcGF2bg==",
     "openrouter": "",
     "groq": "",
-    "gemini": "kpk-enc-UWc4VVNKUkQ1Y1IwZXJRYktEUnRQZWlBZTJqNEU4cnhPR3ZCdzFrRnJsd0w2TlI4YkEuUUE=",
+    "gemini": "kpk-enc-QUxIYmJFZXd6SDJDVHZiczE4NVpjTHJmcW12OW9WOUdVVV9qa1VrcTVjR0s2TlI4YkEuUUE=",
     "lightning": "kpk-enc-MGNkODM4OTg1YzQzLTBmY2EtOTgzNC05ZmZhLTY0YjAzMDFkLXRpbC1rcw==",
     "elevenlabs": "kpk-enc-YTgzNTE5NjZlZDE0Zjc1ODkwOTIzM2Y4MmY2MjdiYzhmNTRmYjg3MmE0ZDc5ZTY0X2tz"
   },

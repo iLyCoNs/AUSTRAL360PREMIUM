@@ -1202,9 +1202,10 @@
           <div class="efield full">
             <label>Proveedor de Inteligencia Artificial (Copiloto)</label>
             <select id="brand-ai-provider" onchange="onAIProviderChange()" style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; outline: none; font-family: inherit;">
+              <option value="nvidia" selected>NVIDIA NIM (Llama 3.3 70B · Ultra-rápido)</option>
               <option value="gemini">Google AI Studio (Gemini 1.5 Flash)</option>
               <option value="groq">Groq API (Llama 3.1 / Gemma 2)</option>
-              <option value="openrouter" selected>OpenRouter API (Mistral 7B · Gratis)</option>
+              <option value="openrouter">OpenRouter API (Mistral 7B · Gratis)</option>
               <option value="lightning">Lightning.ai (Gemini 3.5 Flash · Gratis 30M)</option>
             </select>
           </div>
@@ -1537,9 +1538,9 @@
               <input type="number" id="f-uf" placeholder="Ej: 1500" min="0" oninput="liveUpdate()">
             </div>
             <div class="efield full" style="grid-column: span 2;">
-              <label>Cualidades / Características Especiales (para la IA y Espectador)</label>
-              <textarea id="f-caracteristicas" placeholder="Ej: Hermosa vista despejada, terreno 100% plano, árboles nativos, sol de tarde, cerca de la playa..." oninput="liveUpdate()" style="width: 100%; min-height: 80px; padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #fff; font-family: inherit; font-size: 13.5px; resize: vertical; outline: none; transition: border-color 0.2s;"></textarea>
-              <span class="brand-opt-hint" style="margin-top: 4px; display: block; font-size: 11px; color: var(--text-3);">Describe los detalles de valor de esta parcela. El Copiloto de Ventas IA las usará para buscar y responder de forma inteligente.</span>
+              <label>Hashtags y Características (#Etiquetas)</label>
+              <textarea id="f-caracteristicas" placeholder="Ej: #VistaAlMar, #Plano, #ArbolesNativos, #AguaEnEntrada, Terreno 100% plano..." oninput="liveUpdate()" style="width: 100%; min-height: 80px; padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #fff; font-family: inherit; font-size: 13.5px; resize: vertical; outline: none; transition: border-color 0.2s;"></textarea>
+              <span class="brand-opt-hint" style="margin-top: 4px; display: block; font-size: 11px; color: var(--text-3);">Ingresa hashtags (ej: #VistaAlMar, #Plano, #ArbolesNativos) o características. Se mostrarán como etiquetas informativas en los Smart Pins y serán usadas por la IA.</span>
             </div>
             <div class="clp-line">
               <span>Valor estimado en CLP</span>
@@ -1896,7 +1897,10 @@ function selectLote(id) {
   document.getElementById('f-dim').value    = l.dimensiones || '';
   document.getElementById('f-uf').value     = l.valorUF || '';
   const descEl = document.getElementById('f-caracteristicas');
-  if (descEl) descEl.value = l.caracteristicas || '';
+  if (descEl) {
+    const rawVal = l.hashtags ? (Array.isArray(l.hashtags) ? l.hashtags.join(', ') : l.hashtags) : (l.caracteristicas || '');
+    descEl.value = rawVal;
+  }
   _estado = l.estado || 'disponible';
   refreshEstadoBtns();
   liveUpdate();
@@ -2151,6 +2155,10 @@ function onAIProviderChange() {
     if (lblKey) lblKey.textContent = 'API Key de Lightning.ai';
     if (txtKey) txtKey.placeholder = 'sk-lit-...';
     if (hintKey) hintKey.innerHTML = 'Pega tu API Key de <a href="https://lightning.ai" target="_blank" style="color:var(--accent)">lightning.ai</a>. Modelo: google/gemini-3.5-flash (30M tokens gratis al mes).';
+  } else if (provider === 'nvidia') {
+    if (lblKey) lblKey.textContent = 'API Key de NVIDIA NIM';
+    if (txtKey) txtKey.placeholder = 'nvapi-...';
+    if (hintKey) hintKey.innerHTML = 'Pega tu API Key de <a href="https://build.nvidia.com" target="_blank" style="color:var(--accent)">build.nvidia.com</a>. Modelo: meta/llama-3.3-70b-instruct (Ultra-rápido).';
   }
 }
 
@@ -3161,6 +3169,7 @@ async function saveBrand() {
       voiceMode: document.getElementById('brand-ai-voice') ? document.getElementById('brand-ai-voice').value : 'auto_gigi',
       ttsOutputEnabled: localStorage.getItem('kpk_tts_output') === '1',
       aiKeys: {
+        nvidia:     _obfuscateKey(localStorage.getItem('ferrari_ai_key_nvidia') || ''),
         openrouter: _obfuscateKey(localStorage.getItem('ferrari_ai_key_openrouter') || ''),
         groq:       _obfuscateKey(localStorage.getItem('ferrari_ai_key_groq') || ''),
         gemini:     _obfuscateKey(localStorage.getItem('ferrari_ai_key_gemini') || ''),
@@ -3383,7 +3392,14 @@ async function saveLote() {
   l.dimensiones = document.getElementById('f-dim').value.trim();
   l.valorUF     = document.getElementById('f-uf').value ? parseFloat(document.getElementById('f-uf').value) : null;
   const descEl  = document.getElementById('f-caracteristicas');
-  if (descEl) l.caracteristicas = descEl.value.trim();
+  if (descEl) {
+    const rawVal = descEl.value.trim();
+    const parsedTags = rawVal
+      ? rawVal.split(/[,;\s]+/).map(t => t.trim()).filter(Boolean).map(t => t.startsWith('#') ? t : `#${t}`)
+      : [];
+    l.caracteristicas = rawVal;
+    l.hashtags = parsedTags;
+  }
   if (!Array.isArray(l.fotos)) l.fotos = [];
 
   saveAll();
