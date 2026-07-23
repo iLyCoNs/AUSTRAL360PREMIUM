@@ -3929,6 +3929,16 @@
     setAISpeaking(false);
   }
 
+  // ─── Utilidad: desbloqueo global de audio HTML5 ─────────────────────────────────
+  function _unlockAudioContext() {
+    try {
+      if (!_globalAudio) _globalAudio = new Audio();
+      _globalAudio.play().catch(() => {});
+    } catch(e) {}
+  }
+  window.addEventListener('pointerdown', _unlockAudioContext, { passive: true });
+  window.addEventListener('keydown', _unlockAudioContext, { passive: true });
+
   // ─── Utilidad: reproducir un Blob de audio ─────────────────────────────────
   function _playAudioBlob(blob, fallbackText) {
     return new Promise(resolve => {
