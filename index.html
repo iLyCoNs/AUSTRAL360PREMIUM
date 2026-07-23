@@ -35,11 +35,11 @@
       if (storedVer !== currentVer) {
         ['ferrari_ai_provider', 'ferrari_ai_key_openrouter',
          'ferrari_ai_key_groq', 'ferrari_ai_key_gemini',
-         'ferrari_gemini_api_key'].forEach(function(k) {
+         'ferrari_gemini_api_key', 'kpk_voice_user_override', 'kpk_voice_mode'].forEach(function(k) {
           localStorage.removeItem(k);
         });
         localStorage.setItem('kpk_config_version', currentVer);
-        console.log('[KPK] Config v' + currentVer + ' cargada — keys AI sincronizadas.');
+        console.log('[KPK] Config v' + currentVer + ' cargada — keys AI y voz sincronizadas.');
       }
     })();
   </script>

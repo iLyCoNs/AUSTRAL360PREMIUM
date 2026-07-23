@@ -3542,10 +3542,21 @@
     }
 
     try {
-      const res = await fetch('https://api.elevenlabs.io/v1/user/subscription', {
+      let res = await fetch('https://api.elevenlabs.io/v1/user/subscription', {
         method: 'GET',
         headers: { 'xi-api-key': key, 'Accept': 'application/json' }
       });
+      if (res.status === 401 || res.status === 403) {
+        res = await fetch('https://api.elevenlabs.io/v1/models', {
+          method: 'GET',
+          headers: { 'xi-api-key': key, 'Accept': 'application/json' }
+        });
+        if (res.ok) {
+          console.log('[Gigi/Voz] ✓ ElevenLabs Key válida (vía /v1/models)');
+          _setElevenLabsStatus(true, key, 10000);
+          return true;
+        }
+      }
       if (!res.ok) {
         console.warn('[Gigi/Voz] ElevenLabs subscription HTTP', res.status);
         _setElevenLabsStatus(false, key, 0);
@@ -3557,10 +3568,9 @@
       const remaining = limit > 0 ? Math.max(0, limit - used) : 0;
       const status = String(data.status || 'active').toLowerCase();
       const statusOk = status === 'active' || status === 'trialing' || status === 'free';
-      // Pedimos al menos ~80 caracteres para un saludo corto
       const ok = statusOk && (limit === 0 || remaining >= 80);
-      console.log(`[Gigi/Voz] ElevenLabs créditos restantes: ${remaining}/${limit || '?'} → ${ok ? 'Gigi Bella' : 'Mia gratis'}`);
-      _setElevenLabsStatus(ok, key, remaining);
+      console.log(`[Gigi/Voz] ElevenLabs créditos restantes: ${remaining}/${limit || '?'} → ${ok ? 'Gigi/Daniel' : 'Mia gratis'}`);
+      _setElevenLabsStatus(ok, key, remaining || 10000);
       return ok;
     } catch (e) {
       console.warn('[Gigi/Voz] ElevenLabs probe error:', e.message);
@@ -3747,19 +3757,14 @@
     try {
       if (window.FerrariBrandDock && typeof window.FerrariBrandDock.getBrand === 'function') {
         const brandMode = window.FerrariBrandDock.getBrand().voiceMode;
-        if (brandMode) {
-          if (localStorage.getItem('kpk_voice_mode') !== brandMode) {
-            localStorage.setItem('kpk_voice_mode', brandMode);
-          }
-          return brandMode;
-        }
+        if (brandMode) return brandMode;
       }
     } catch (e) {}
-    const stored = localStorage.getItem('kpk_voice_mode');
-    if (stored) return stored;
     const cfg = window.KPK_CONFIG || {};
     if (cfg.voiceMode) return cfg.voiceMode;
-    return 'auto_gigi';
+    const stored = localStorage.getItem('kpk_voice_mode');
+    if (stored && stored !== 'webspeech') return stored;
+    return 'elevenlabs_daniel';
   }
 
   /**
@@ -4443,7 +4448,7 @@
       return;
     }
 
-    // Modo JARVIS: Charon solo si hay presupuesto y frase corta; si no, Dalia/Jorge directo
+    // Modo JARVIS: Charon solo si hay presupuesto; si no, ElevenLabs -> Dalia -> Google TTS
     if (wantsCharon) {
       const spendCharon = (preferred === 'gemini_tts' || mode === 'gemini_tts')
         ? !_geminiTtsOnCooldown()
@@ -4455,26 +4460,30 @@
           console.log('[Gigi/Voz] ✓', vName === 'Charon' ? 'JARVIS Charon' : 'Gemini Kore');
           return;
         }
-        console.warn('[Gigi/Voz] Charon/Gemini falló → Dalia/Jorge');
+        console.warn('[Gigi/Voz] Charon/Gemini no disponible → Probando ElevenLabs / Google TTS');
       }
 
+      // 1) Probar ElevenLabs (Daniel / Gigi) si Gemini no está disponible
+      const elOk = await _probeElevenLabs(false);
+      if (elOk) {
+        const v = wantsMale ? ELEVENLABS_VOICE_DANIEL : ELEVENLABS_VOICE_GIGI;
+        if (await _speakElevenLabs(text, v)) {
+          _lastUsedVoiceEngine = 'elevenlabs';
+          console.log('[Gigi/Voz] ✓ ElevenLabs', v);
+          return;
+        }
+      }
+
+      // 2) Probar Dalia / Jorge local
       if (await _tryDaliaFallback(text, wantsMale)) return;
 
-      // En JARVIS no quemamos ElevenLabs; saltamos a SE/Google solo si proxy apagado
-      if (await _speakStreamElements(text, streamVoice)) {
-        _lastUsedVoiceEngine = 'streamelements';
-        return;
-      }
+      // 3) Probar Google Translate TTS (voz fluida)
       if (await _speakGoogleTranslate(text)) {
         _lastUsedVoiceEngine = 'google_tts';
+        console.log('[Gigi/Voz] ✓ Google TTS (voz humana fluida)');
         return;
       }
-      console.warn('[Gigi/Voz] ⚠️ Solo WebSpeech. Arranca: npm run tts');
-      try {
-        if (window.FerrariUI && typeof window.FerrariUI.showToast === 'function') {
-          window.FerrariUI.showToast('Sin Dalia: ejecuta npm run tts', 'warning');
-        }
-      } catch (e) {}
+
       if (_speakWebSpeech(text)) _lastUsedVoiceEngine = 'webspeech';
       return;
     }
@@ -4522,13 +4531,15 @@
       return;
     }
 
-    // 6) Google Translate
+    // 6) Google Translate Neural TTS (voz humana fluida gratis)
     if (await _speakGoogleTranslate(text)) {
       _lastUsedVoiceEngine = 'google_tts';
+      console.log('[Gigi/Voz] ✓ Google Neural TTS (voz humana)');
       return;
     }
 
-    // 7) WebSpeech — solo si TODO humano falló
+    // 7) WebSpeech — solo si la red falló totalmente
+    if (_speakWebSpeech(text)) _lastUsedVoiceEngine = 'webspeech';
     console.warn('[Gigi/Voz] ⚠️ Solo WebSpeech. Arranca: npm run tts');
     try {
       if (window.FerrariUI && typeof window.FerrariUI.showToast === 'function') {

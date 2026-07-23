@@ -8,18 +8,16 @@
 
 (function() {
   window.KPK_CONFIG = {
-    configVersion: 14,
+    configVersion: 15,
 
     // Proveedor predeterminado prioritario (NVIDIA NIM - Llama 3.3 70B)
     aiProvider: 'nvidia',
 
-  // Voz: jarvis_charon = Gemini Charon (doc Voz_Charon_JARVIS); auto_gigi = Bella/Mia/Dalia
-  voiceMode: 'jarvis_charon',
+  // Voz: elevenlabs_daniel = ElevenLabs Daniel (Voz Humana Male); elevenlabs_gigi = Gigi Bella; jarvis_charon = Gemini Charon
+  voiceMode: 'elevenlabs_daniel',
 
-    // Puente TTS + búsqueda YouTube por internet (Hetzner/VPS). Vacío = solo localhost:8787.
-    // Debe exponer /health, /tts y /yt-search
-    // Ejemplo: 'https://tts.tudominio.com'
-    ttsProxyUrl: '',
+    // Puente TTS 24/7 en la nube (n8n Cloud)
+    ttsProxyUrl: 'https://lycons.app.n8n.cloud/webhook/nvidia-tts',
 
     // Salida de voz del copiloto (hablar). true = voz activa por defecto para Charon
     ttsOutputEnabled: true,
