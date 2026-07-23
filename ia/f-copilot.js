@@ -3721,27 +3721,41 @@
     try {
       const clean = _cleanTextForTTS(text);
       if (!clean) return false;
-      const voice = forceVoice || EDGE_TTS_VOICE_DALIA;
-      const url = LOCAL_TTS_PROXY + '/tts?voice=' + encodeURIComponent(voice)
-        + '&rate=' + encodeURIComponent('+8%')
-        + '&pitch=' + encodeURIComponent('+2Hz')
-        + '&text=' + encodeURIComponent(clean);
+
+      let url = LOCAL_TTS_PROXY;
+      let res;
       const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 12000);
-      const res = await fetch(url, { method: 'GET', mode: 'cors', cache: 'no-store', signal: ctrl.signal });
+      const t = setTimeout(() => ctrl.abort(), 15000);
+
+      if (url.includes('webhook') || url.includes('n8n.cloud')) {
+        res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: clean, q: clean }),
+          mode: 'cors',
+          signal: ctrl.signal
+        });
+      } else {
+        const voice = forceVoice || EDGE_TTS_VOICE_DALIA;
+        const getUrl = url + '/tts?voice=' + encodeURIComponent(voice)
+          + '&rate=' + encodeURIComponent('+8%')
+          + '&pitch=' + encodeURIComponent('+2Hz')
+          + '&text=' + encodeURIComponent(clean);
+        res = await fetch(getUrl, { method: 'GET', mode: 'cors', cache: 'no-store', signal: ctrl.signal });
+      }
       clearTimeout(t);
       if (!res.ok) {
-        console.warn('[Gigi/Voz] Proxy local HTTP', res.status);
+        console.warn('[Gigi/Voz] Proxy local/n8n HTTP error:', res.status);
         _localTtsOk = false;
         return false;
       }
       const blob = await res.blob();
       if (!blob || blob.size < 200) return false;
       _localTtsOk = true;
-      _lastUsedVoiceEngine = 'local_dalia';
+      _lastUsedVoiceEngine = 'n8n_cloud_tts';
       return _playAudioBlob(blob, text);
     } catch (e) {
-      console.warn('[Gigi/Voz] Proxy local Dalia no disponible:', e.message);
+      console.warn('[Gigi/Voz] Proxy local/n8n no disponible:', e.message);
       _localTtsOk = false;
       return false;
     }
