@@ -6153,7 +6153,7 @@
     }, null, 2) : 'null (ninguno enfocado aún)';
 
     const activeVoiceMode = _getVoiceMode();
-    const isGigi = activeVoiceMode.includes('gigi') || activeVoiceMode.includes('dalia') || activeVoiceMode === 'auto_gigi';
+    const isGigi = activeVoiceMode.includes('gigi') || activeVoiceMode.includes('dalia') || activeVoiceMode.includes('n8n') || activeVoiceMode.includes('elevenlabs') || activeVoiceMode === 'auto_gigi';
     const personalityPrompt = isGigi
       ? `PERSONALIDAD Y ROL DE GIGI / DALIA (Vendedora Patagona — Alegria, Encanto y Cierre):
 Eres Gigi, la asesora estrella del proyecto. Hablas con la voz de Dalia: mujer latina, alegre, coqueta con clase, cálida y muy persuasiva. NO eres una enciclopedia ni una recepcionista fría. Eres una vendedora que enamora, hace sonreír y cierra.
