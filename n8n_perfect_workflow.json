@@ -1,0 +1,121 @@
+{
+  "name": "NVIDIA TTS 24/7 Cloud Bridge (Voz Directa)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nvidia-tts",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "id": "webhook-node",
+      "name": "1. Webhook Entrada"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.soundoftext.com/sounds",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"engine\": \"Google\",\n  \"data\": {\n    \"text\": \"{{ String($json.body.text || $json.body.q || $json.query.text || 'Hola').replace(/[\"\\\\\\n]/g, ' ') }}\",\n    \"voice\": \"es-ES\"\n  }\n}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [250, 0],
+      "id": "sound-api-node",
+      "name": "2. Solicitar Sintesis Voz"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://files.soundoftext.com/{{ $json.id }}.mp3",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 0],
+      "id": "download-mp3-node",
+      "name": "3. Descargar Audio MP3"
+    },
+    {
+      "parameters": {
+        "respondWith": "binary",
+        "dataPropertyName": "data",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "audio/mpeg"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [750, 0],
+      "id": "respond-node",
+      "name": "4. Entregar MP3 al Visor 360°"
+    }
+  ],
+  "connections": {
+    "1. Webhook Entrada": {
+      "main": [
+        [
+          {
+            "node": "2. Solicitar Sintesis Voz",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Solicitar Sintesis Voz": {
+      "main": [
+        [
+          {
+            "node": "3. Descargar Audio MP3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Descargar Audio MP3": {
+      "main": [
+        [
+          {
+            "node": "4. Entregar MP3 al Visor 360°",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
