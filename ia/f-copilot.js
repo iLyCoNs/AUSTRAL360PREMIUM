@@ -4432,10 +4432,11 @@
     const isMobile = window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     if (isMobile) showMobileBubblePopup(text);
 
-    // Cortar cualquier audio previo (doble voz Charon/Dalia/WebSpeech)
+    // Cortar cualquier audio o micrófono previo para liberar contexto de audio en Chrome
     try { stopAISpeech(); } catch (e) {}
     try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
     if (_activeJarvisAudio) { try { _activeJarvisAudio.pause(); } catch (e) {} _activeJarvisAudio = null; }
+    if (_recognition) { try { _recognition.stop(); } catch (e) {} _isListening = false; }
 
     if (!_speechEnabled) {
       console.log('[Gigi/Voz] TTS OFF (admin) — solo texto');
@@ -4564,17 +4565,14 @@
       return;
     }
 
-    // 7) WebSpeech — solo si la red falló totalmente
-    if (_speakWebSpeech(text)) _lastUsedVoiceEngine = 'webspeech';
-    console.warn('[Gigi/Voz] ⚠️ Solo WebSpeech. Arranca: npm run tts');
-    try {
-      if (window.FerrariUI && typeof window.FerrariUI.showToast === 'function') {
-        window.FerrariUI.showToast('Sin Dalia/Charon: ejecuta npm run tts', 'warning');
-      }
-    } catch (e) {}
-    if (_speakWebSpeech(text)) {
-      _lastUsedVoiceEngine = 'webspeech';
+    // 7) Omitir WebSpeech (voz robótica) si el usuario eligió n8n Cloud o Gigi
+    if (preferred === 'n8n_cloud_tts' || preferred === 'local_dalia' || mode.includes('n8n') || mode.includes('gigi')) {
+      console.log('[Gigi/Voz] Omitiendo WebSpeech robótico por preferencia n8n Cloud / Gigi');
+      return;
     }
+
+    // WebSpeech — solo para modos explícitamente configurados como webspeech
+    if (_speakWebSpeech(text)) _lastUsedVoiceEngine = 'webspeech';
   }
 
   function playFuturisticSound(type) {
