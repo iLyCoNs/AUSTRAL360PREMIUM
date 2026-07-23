@@ -3276,12 +3276,14 @@
   const TTS_OUTPUT_KEY = 'kpk_tts_output';
   function _readTtsOutputEnabled() {
     try {
-      if (localStorage.getItem(TTS_OUTPUT_KEY) === '1') return true;
-      if (localStorage.getItem(TTS_OUTPUT_KEY) === '0') return false;
+      const ls = localStorage.getItem(TTS_OUTPUT_KEY);
+      if (ls === '0') return false;
+      if (ls === '1') return true;
       const cfg = window.KPK_CONFIG || {};
-      if (cfg.ttsOutputEnabled === true) return true;
+      if (cfg.ttsOutputEnabled === false) return false;
+      return true;
     } catch (e) {}
-    return false;
+    return true;
   }
   function _setTtsOutputEnabled(on) {
     try { localStorage.setItem(TTS_OUTPUT_KEY, on ? '1' : '0'); } catch (e) {}
