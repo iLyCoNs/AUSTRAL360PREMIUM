@@ -4402,8 +4402,8 @@
     const gen = ++_speakGen;
     _lastSpokenText = _cleanTextForTTS(text);
 
-    // Siempre releer admin flag (evita Charon+Dalia si se reactivó sola)
-    _speechEnabled = localStorage.getItem(TTS_OUTPUT_KEY) === '1';
+    // Siempre releer admin flag y config por defecto
+    _speechEnabled = _readTtsOutputEnabled();
 
     const isMobile = window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     if (isMobile) showMobileBubblePopup(text);
